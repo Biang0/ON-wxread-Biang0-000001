@@ -18,7 +18,7 @@ jobs:
     - name: Set DNS to Google's DNS
       run: |
         echo "nameserver 8.8.8.8" | sudo tee /etc/resolv.conf
-        echo "nameserver 8.8.4.4" | sudo tee -a /etc/resolv.conf
+        echo "nameserver 8.8.4.4" | sudo tee -a /etc/resolv.conf  
 
     - name: Checkout repository
       uses: actions/checkout@v2
@@ -40,14 +40,15 @@ jobs:
         sleep $((DELAY * 60)) # 转换为秒并等待
 
     - name: Generate random READ_NUM  
-      run: |
+      run: |  
         RANDOM_NUM=$((RANDOM % 61 + 120)) # 生成120到180（60~90分钟，数字1=30秒）受限于action单次运行最大时长6小时，这里最大值75分钟。又因为参与读书小队，每天支持3小时。
-        echo "READ_NUM=$RANDOM_NUM" >> $GITHUB_ENV  
+        echo "READ_NUM=$RANDOM_NUM" >> $GITHUB_ENV    
 
-    - name: Display value in workflow    
-       run: |  
-       # 方式 1：直接输出环境变量
-      echo " 成功生成 READ_NUM = ${{env.READ_NUM}}"  
+    - name: Display value in workflow
+        run: | 
+          # 方式 1：直接输出环境变量
+          echo " 成功生成 READ_NUM = ${{env.READ_NUM}}"  
+
 
 
     - name: Run deployment script
