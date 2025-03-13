@@ -18,13 +18,13 @@ jobs:
     - name: Set DNS to Google's DNS
       run: |
         echo "nameserver 8.8.8.8" | sudo tee /etc/resolv.conf
-        echo "nameserver 8.8.4.4" | sudo tee -a /etc/resolv.conf  
+        echo "nameserver 8.8.4.4" | sudo tee -a /etc/resolv.conf
 
     - name: Checkout repository
       uses: actions/checkout@v2
 
     - name: Set up Python
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v2  
       with:
         python-version: '3.10'
 
@@ -41,7 +41,7 @@ jobs:
 
      - name: Generate random READ_NUM
       run: |
-        if [["${{ github.event.schedule}}" == "0 9 * * sat,sun" ]]; then
+        if [["${{ github.event.schedule}}" == "0 9 * * sat,sun" ]]; then  
           RANDOM_NUM=$((RANDOM % 121 + 180))  # 180~300（90~150 分钟）
         else
           RANDOM_NUM=$((RANDOM % 61 + 120))   # 120~180（60~90 分钟）
