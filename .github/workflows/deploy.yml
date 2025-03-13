@@ -30,19 +30,19 @@ jobs:
 
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip
+        python -m pip install --upgrade pip  
         pip install certifi==2024.8.30 charset-normalizer==3.4.0 idna==3.10 requests==2.32.3 urllib3==2.2.3    
 
-     - name: Random delay between 0-30 分钟之间  
+     - name: Random delay between 0-10 minutes
       run: |
-        DELAY=$((RANDOM % 11)) # 生成 0 到 30 分钟的随机延迟（单位：分钟）
-        echo "Delaying for $DELAY minutes..."    
+        DELAY=$((RANDOM % 11)) # 生成 0 到 10 分钟的随机延迟（单位：分钟）
+        echo "Delaying for $DELAY minutes..."
         sleep $((DELAY * 60)) # 转换为秒并等待
 
-    - name: Generate random READ_NUM
+    - name: Generate random READ_NUM  
       run: |
         RANDOM_NUM=$((RANDOM % 61 + 120)) # 生成120到180（60~90分钟，数字1=30秒）受限于action单次运行最大时长6小时，这里最大值75分钟。又因为参与读书小队，每天支持3小时。
-        echo "READ_NUM=$RANDOM_NUM" >> $GITHUB_ENV 
+        echo "READ_NUM=$RANDOM_NUM" >> $GITHUB_ENV     
 
     - name: Run deployment script
       env:
