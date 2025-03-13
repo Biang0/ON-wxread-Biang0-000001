@@ -39,18 +39,10 @@ jobs:
         echo "Delaying for $DELAY minutes..."  
         sleep $((DELAY * 60)) # 转换为秒并等待
 
-   - name: Generate random READ_NUM based on schedule
+    - name: Generate random READ_NUM
       run: |
-        # 注意：READ_NUM 的单位不是分钟，1 = 30 秒
-        if [[ "${{ github.event.schedule }}" == "0 16 * * *" ]]; then
-          # 0:00 任务，运行 3-5 小时（180-300分钟，生成360~600） 
-          RANDOM_NUM=$((RANDOM % 241 + 360))
-        else
-          # 17:00 任务，运行 2-3 小时（120-180分钟）
-          RANDOM_NUM=$((RANDOM % 121 + 240))
-        fi
-        echo "READ_NUM=$RANDOM_NUM" >> $GITHUB_ENV
-        echo "Running for $((RANDOM_NUM * 30)) seconds ($((RANDOM_NUM * 30 / 60)) minutes)"   
+        RANDOM_NUM=$((RANDOM % 61 + 120)) # 生成120到180（60~90分钟，数字1=30秒）受限于action单次运行最大时长6小时，这里最大值75分钟。又因为参与读书小队，每天支持3小时。
+        echo "READ_NUM=$RANDOM_NUM" >> $GITHUB_ENV   
 
     - name: Run deployment script
       env:
