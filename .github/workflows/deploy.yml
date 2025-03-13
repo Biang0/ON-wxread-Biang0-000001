@@ -33,9 +33,9 @@ jobs:
         python -m pip install --upgrade pip
         pip install certifi==2024.8.30 charset-normalizer==3.4.0 idna==3.10 requests==2.32.3 urllib3==2.2.3
 
-    - name: Random delay between 0-10 minutes
+    - name: Random delay between 0-20 minutes  
       run: |
-        DELAY=$((RANDOM % 11)) # 生成 0 到 10 分钟的随机延迟（单位：分钟）
+        DELAY=$((RANDOM % 21)) # 生成 0 到 20 分钟的随机延迟（单位：分钟）
         echo "Delaying for $DELAY minutes..."
         sleep $((DELAY * 60)) # 转换为秒并等待
 
@@ -48,7 +48,7 @@ jobs:
       env:
         WXREAD_CURL_BASH: ${{ secrets.WXREAD_CURL_BASH }}
         PUSH_METHOD: ${{ secrets.PUSH_METHOD }}
-        PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
+        PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}  
         WXPUSHER_SPT: ${{ secrets.WXPUSHER_SPT }}
         TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
         TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
