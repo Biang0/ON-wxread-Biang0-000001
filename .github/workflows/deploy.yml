@@ -3,7 +3,7 @@ name: wxread
 on:
   schedule:
     - cron: '00 14 * * *'         # 北京时间 22:00（UTC 14:00）
-    - cron: '0 21 * * *'          # 北京时间 5:00（UTC 21:00）
+    - cron: '0 21 * * *'          # 北京时间 5:00（UTC 21:00）  
     - cron: '40 3 * * *'          # 北京时间 11:40（UTC 3:40）
     - cron: '0 9 * * sat,sun'     # 北京时间 17:00（UTC 9:00，仅周末）
   workflow_dispatch:
@@ -18,13 +18,13 @@ jobs:
     - name: Set DNS to Google's DNS
       run: |
         echo "nameserver 8.8.8.8" | sudo tee /etc/resolv.conf
-        echo "nameserver 8.8.4.4" | sudo tee -a /etc/resolv.conf
+        echo "nameserver 8.8.4.4" | sudo tee -a /etc/resolv.conf  
 
     - name: Checkout repository
       uses: actions/checkout@v2
 
     - name: Set up Python
-      uses: actions/setup-python@v2  
+      uses: actions/setup-python@v2
       with:
         python-version: '3.10'
 
@@ -32,14 +32,15 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install certifi==2024.8.30 charset-normalizer==3.4.0 idna==3.10 requests==2.32.3 urllib3==2.2.3
+  
 
     - name: Random delay between 0-30 分钟
       run: |
-        DELAY=$((RANDOM % 1))    
+        DELAY=$((RANDOM % 31))  
         echo "Delaying for $DELAY minutes..."
         sleep $((DELAY * 60))
 
-     - name: Generate random READ_NUM
+    - name: Generate random READ_NUM
       run: |
         if [["${{ github.event.schedule}}" == "0 9 * * sat,sun" ]]; then  
           RANDOM_NUM=$((RANDOM % 121 + 180))  # 180~300（90~150 分钟）
@@ -48,16 +49,14 @@ jobs:
         fi
         echo "READ_NUM=$RANDOM_NUM" >> $GITHUB_ENV
 
- 
-
     - name: Run deployment script
       env:
         WXREAD_CURL_BASH: ${{secrets.WXREAD_CURL_BASH}}
-        PUSH_METHOD: ${{secrets.PUSH_METHOD}}  
+        PUSH_METHOD: ${{secrets.PUSH_METHOD}}
         PUSHPLUS_TOKEN: ${{secrets.PUSHPLUS_TOKEN}}
-        WXPUSHER_SPT: ${{secrets.WXPUSHER_SPT}}    
+        WXPUSHER_SPT: ${{secrets.WXPUSHER_SPT}}
         TELEGRAM_BOT_TOKEN: ${{secrets.TELEGRAM_BOT_TOKEN}}
         TELEGRAM_CHAT_ID: ${{secrets.TELEGRAM_CHAT_ID}}
-        READ_NUM: ${{env.READ_NUM}}
+        READ_NUM: ${{env.READ_NUM}}  
       run: |
-        python main.py
+        python main.py  
