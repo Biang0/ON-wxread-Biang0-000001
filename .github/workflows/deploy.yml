@@ -35,14 +35,14 @@ jobs:
 
     - name: Random delay between 0-30 分钟
       run: |
-        DELAY=$((RANDOM % 31))
+        DELAY=$((RANDOM % 1))  
         echo "Delaying for $DELAY minutes..."
         sleep $((DELAY * 60))
 
     - name: Generate random READ_NUM
   run: |
     # 获取星期信息（GitHub 使用 UTC 时间）
-    WEEKDAY=$(date +% u)  # 1 = 周一,7 = 周日
+    WEEKDAY=$(date +% u)  # 1 = 周一,7 = 周日  
     
     # 生成阅读数值并计算时长
     if [[$WEEKDAY -ge 6]]; then
