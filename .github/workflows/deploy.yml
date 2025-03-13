@@ -35,57 +35,18 @@ jobs:
 
     - name: Random delay between 0-30 分钟
       run: |
-        DELAY=$((RANDOM % 31))  
+        DELAY=$((RANDOM % 1))    
         echo "Delaying for $DELAY minutes..."
         sleep $((DELAY * 60))
 
-   - name: Generate random READ_NUM
-  run: |
-    # ======================
-    #  时间计算模块
-    # ======================
-    CURRENT_UTC=$(date -u "+% Y-% m-% d % H:% M UTC")
-    BEIJING_TIME=$(date -d "+8 hours" "+% Y-% m-% d % H:% M CST")
-    
-    echo " 系统时间报告:"
-    echo "-------------------------------------"
-    echo "| UTC 时间  : ${CURRENT_UTC}"
-    echo "| 北京时间  : ${BEIJING_TIME}"
-    echo "-------------------------------------"
-
-    # ======================
-    #  随机数生成逻辑
-    # ======================
-    WEEKDAY=$(date +% u)
-    
-    if [[$WEEKDAY -ge 6]]; then
-        # 周末配置（180~300 → 90~150 分钟）
-        RANDOM_NUM=$((RANDOM % 121 + 180))
-        TIMING_TYPE=" 周末延长时段"
-    else
-        # 工作日配置（120~180 → 60~90 分钟）
-        RANDOM_NUM=$((RANDOM % 61 + 120))
-        TIMING_TYPE=" 常规工作日段"
-    fi
-    # ======================
-    #  时长换算显示
-    # ======================
-    TOTAL_SECONDS=$((RANDOM_NUM * 30))
-    MINUTES=$((TOTAL_SECONDS / 60))
-    SECONDS=$((TOTAL_SECONDS % 60))
-    
-    # 格式化时间显示
-    DURATION_DISPLAY=$(printf "%02d 分 %02d 秒" "$MINUTES" "$SECONDS")  
-    DURATION_DECIMAL=$(awk "BEGIN {printf &#92;"%.1f&#92;", $TOTAL_SECONDS / 60}")
-
-    echo " 生成报告:"
-    echo "-------------------------------------"
-    echo "| 时段类型  : ${TIMING_TYPE}"
-    echo "| 原始数值  : ${RANDOM_NUM} 单位"
-    echo "| 标准时长  : ${DURATION_DISPLAY}"  
-    echo "| 精确时长  : ${DURATION_DECIMAL} 分钟"
-    echo "-------------------------------------"
-    echo "READ_NUM=${RANDOM_NUM}" >> $GITHUB_ENV
+   - name: Generate random READ_NUM  
+      run: |
+        if [["${{ github.event.schedule}}" == "0 9 * * sat,sun" ]]; then  
+          RANDOM_NUM=$((RANDOM % 121 + 180))  # 180~300（90~150 分钟）
+        else
+          RANDOM_NUM=$((RANDOM % 61 + 120))   # 120~180（60~90 分钟）    
+        fi
+        echo "READ_NUM=$RANDOM_NUM" >> $GITHUB_ENV
 
 
     - name: Run deployment script  
