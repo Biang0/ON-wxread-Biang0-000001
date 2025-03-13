@@ -39,17 +39,17 @@ jobs:
         echo "Delaying for $DELAY minutes..."
         sleep $((DELAY * 60)) # 转换为秒并等待
 
-    - name: Generate random READ_NUM
+    - name: Generate random READ_NUM  
   run: |
     RANDOM_NUM=$((RANDOM % 61 + 120))
     MINUTES=$(((RANDOM_NUM * 30) / 60 ))  # 将 30 秒单位换算为分钟
     echo "READ_NUM=$RANDOM_NUM" >> $GITHUB_ENV
     echo "::notice title= 阅读时长生成成功:: 随机值：$RANDOM_NUM 单位 | 预计阅读：$MINUTES 分钟"
-
-- name: Display formatted value  
-  run: |
-    echo " 生成结果：READ_NUM = ${{env.READ_NUM}}"
-    echo " 预计阅读时间：$((({{ env.READ_NUM}} * 30) / 60 )) 分钟"
+ 
+    - name: Display formatted value        
+  run: |  
+    echo " 生成结果：READ_NUM = ${{env.READ_NUM}}"  
+    echo " 预计阅读时间：$((({{ env.READ_NUM}} * 30) / 60 )) 分钟"    
 
 
 
