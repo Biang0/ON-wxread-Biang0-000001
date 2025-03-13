@@ -11,7 +11,7 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-22.04
-    environment: AutoRead  # 指定环境  
+    environment: AutoRead  # 指定环境
 
     steps:
 
@@ -21,7 +21,7 @@ jobs:
         echo "nameserver 8.8.4.4" | sudo tee -a /etc/resolv.conf
 
     - name: Checkout repository
-      uses: actions/checkout@v2  
+      uses: actions/checkout@v2
 
     - name: Set up Python
       uses: actions/setup-python@v2
@@ -30,26 +30,19 @@ jobs:
 
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip  
+        python -m pip install --upgrade pip
         pip install certifi==2024.8.30 charset-normalizer==3.4.0 idna==3.10 requests==2.32.3 urllib3==2.2.3
 
-    - name: Random delay between 0-20 minutes      
+    - name: Random delay between 0-20 minutes  
       run: |
         DELAY=$((RANDOM % 21)) # 生成 0 到 20 分钟的随机延迟（单位：分钟）
-        echo "Delaying for $DELAY minutes..."    
+        echo "Delaying for $DELAY minutes..."
         sleep $((DELAY * 60)) # 转换为秒并等待
 
-    - name: Generate random READ_NUM
-      run: |      
-        RANDOM_NUM=$((RANDOM % 61 + 120))
-        MINUTES=$(((RANDOM_NUM * 30) / 60 )) # 将 30 秒单位换算为分钟
-         echo "READ_NUM=$RANDOM_NUM" >> $GITHUB_ENV      
-    echo "::notice title= 阅读时长生成成功:: 随机值：$RANDOM_NUM 单位 | 预计阅读：$MINUTES 分钟"
-     
-    - name: Display formatted value  
-      run: |         
-    echo " 生成结果：READ_NUM = ${{env.READ_NUM}}"    
-    echo " 预计阅读时间：$((({{ env.READ_NUM}} * 30) / 60 )) 分钟"          
+    - name: Generate random READ_NUM  
+      run: |
+        RANDOM_NUM=$((RANDOM % 61 + 120)) # 生成120到180（60~90分钟，数字1=30秒）受限于action单次运行最大时长6小时，这里最大值75分钟。又因为参与读书小队，每天支持3小时。
+        echo "READ_NUM=$RANDOM_NUM" >> $GITHUB_ENV     
 
     - name: Run deployment script
       env:
