@@ -40,18 +40,34 @@ jobs:
         sleep $((DELAY * 60))
 
     - name: Generate random READ_NUM
-      run: |
-        if [["${{ github.event.schedule}}" == "0 9 * * sat,sun" ]]; then
-          RANDOM_NUM=$((RANDOM % 121 + 180))  # 180~300（90~150 分钟）
-        else
-          RANDOM_NUM=$((RANDOM % 61 + 120))   # 120~180（60~90 分钟）
-        fi
-        echo "READ_NUM=$RANDOM_NUM" >> $GITHUB_ENV
+  run: |
+    # 获取星期信息（GitHub 使用 UTC 时间）
+    WEEKDAY=$(date +% u)  # 1 = 周一,7 = 周日
+    
+    # 生成阅读数值并计算时长
+    if [[$WEEKDAY -ge 6]]; then
+        # 周末模式 180~300（90~150 分钟）
+        RANDOM_NUM=$((RANDOM % 121 + 180))
+        MINUTES=$((RANDOM_NUM / 2))       # 转换为分钟数
+        SECONDS=$(((RANDOM_NUM % 2) * 30 )) # 剩余秒数
+        echo " 周末模式 | 生成时长: $((MINUTES)) 分 ${SECONDS} 秒 ($RANDOM_NUM)"
+    else
+        # 工作日模式 120~180（60~90 分钟）
+        RANDOM_NUM=$((RANDOM % 61 + 120))
+        MINUTES=$((RANDOM_NUM / 2))
+        SECONDS=$(((RANDOM_NUM % 2) * 30 ))
+        echo " 工作日模式 | 生成时长: $((MINUTES)) 分 ${SECONDS} 秒 ($RANDOM_NUM)"
+    fi
+    # 显示换算说明
+    echo " 单位换算：1 个 READ_NUM = 30 秒"
+    echo " 总阅读时长: $((RANDOM_NUM / 2)) 分钟 (精确值: $(awk"BEGIN {print $RANDOM_NUM*0.5}") 分钟)"
+    echo "READ_NUM=$RANDOM_NUM" >> $GITHUB_ENV
+ 
 
     - name: Run deployment script
       env:
         WXREAD_CURL_BASH: ${{secrets.WXREAD_CURL_BASH}}
-        PUSH_METHOD: ${{secrets.PUSH_METHOD}}
+        PUSH_METHOD: ${{secrets.PUSH_METHOD}}  
         PUSHPLUS_TOKEN: ${{secrets.PUSHPLUS_TOKEN}}
         WXPUSHER_SPT: ${{secrets.WXPUSHER_SPT}}  
         TELEGRAM_BOT_TOKEN: ${{secrets.TELEGRAM_BOT_TOKEN}}
