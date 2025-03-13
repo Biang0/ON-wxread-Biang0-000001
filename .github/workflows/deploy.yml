@@ -10,15 +10,15 @@ on:
 
 jobs:
   deploy:
-    runs-on: ubuntu-22.04  
+    runs-on: ubuntu-22.04
     environment: AutoRead  # 指定环境
 
     steps:
 
     - name: Set DNS to Google's DNS
-      run: |  
-        echo "nameserver 8.8.8.8" | sudo tee /etc/resolv.conf  
-        echo "nameserver 8.8.4.4" | sudo tee -a /etc/resolv.conf  
+      run: |
+        echo "nameserver 8.8.8.8" | sudo tee /etc/resolv.conf
+        echo "nameserver 8.8.4.4" | sudo tee -a /etc/resolv.conf
 
     - name: Checkout repository
       uses: actions/checkout@v2
@@ -43,7 +43,7 @@ jobs:
   run: |  
     RANDOM_NUM=$((RANDOM % 61 + 120))  
     MINUTES=$(((RANDOM_NUM * 30) / 60 ))  # 将 30 秒单位换算为分钟
-    echo "READ_NUM=$RANDOM_NUM" >> $GITHUB_ENV  
+    echo "READ_NUM=$RANDOM_NUM" >> $GITHUB_ENV    
     echo "::notice title= 阅读时长生成成功:: 随机值：$RANDOM_NUM 单位 | 预计阅读：$MINUTES 分钟"
  
     - name: Display formatted value          
@@ -51,15 +51,13 @@ jobs:
     echo " 生成结果：READ_NUM = ${{env.READ_NUM}}"    
     echo " 预计阅读时间：$((({{ env.READ_NUM}} * 30) / 60 )) 分钟"      
 
-
-
     - name: Run deployment script
-      env:  
+      env:
         WXREAD_CURL_BASH: ${{ secrets.WXREAD_CURL_BASH }}
-        PUSH_METHOD: ${{ secrets.PUSH_METHOD }}  
+        PUSH_METHOD: ${{ secrets.PUSH_METHOD }}
         PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}  
-        WXPUSHER_SPT: ${{ secrets.WXPUSHER_SPT }}  
-        TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}  
+        WXPUSHER_SPT: ${{ secrets.WXPUSHER_SPT }}
+        TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
         TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}  
         READ_NUM: ${{ env.READ_NUM }}  # 使用随机生成的 READ_NUM
       run: |
