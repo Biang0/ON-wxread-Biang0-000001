@@ -1,6 +1,6 @@
 name: wxread
 
-on:
+于:
   schedule:
     - cron: '0 16 * * *'  # 北京时间 0:00（UTC 时间 16:00）
     - cron: '0 9 * * *'   # 北京时间 17:00（UTC 时间 9:00）
@@ -31,10 +31,10 @@ jobs:
         python -m pip install --upgrade pip
         pip install certifi==2024.8.30 charset-normalizer==3.4.0 idna==3.10 requests==2.32.3 urllib3==2.2.3
 
-    - name: Random delay between 0-10 minutes
+    - name: Random delay between 0-10 分钟之前
       run: |
-        DELAY=$((RANDOM % 11)) # 生成 0 到 10 分钟的随机延迟（单位：分钟）
-        echo "Delaying for $DELAY minutes..."
+        DELAY=$((RANDOM % 31)) # 生成 0 到 30 分钟的随机延迟（单位：分钟）
+        echo "Delaying for $DELAY minutes..."  
         sleep $((DELAY * 60)) # 转换为秒并等待
 
     - name: Generate random READ_NUM based on schedule
@@ -42,7 +42,7 @@ jobs:
         # 注意：READ_NUM 的单位不是分钟，1 = 30 秒
         if [[ "${{ github.event.schedule }}" == "0 16 * * *" ]]; then
           # 0:00 任务，运行 3-5 小时（180-300分钟，生成360~600） 
-          RANDOM_NUM=$((RANDOM % 241 + 360))
+          RANDOM_NUM=$((RANDOM % 241 + 360))  
         else
           # 17:00 任务，运行 2-3 小时（120-180分钟）
           RANDOM_NUM=$((RANDOM % 121 + 240))
