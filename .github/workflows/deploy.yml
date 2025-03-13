@@ -3,19 +3,19 @@ name: wxread
 on:
   schedule:
     - cron: '00 14 * * *'         # 北京时间 22:00（UTC 14:00）
-    - cron: '0 21 * * *'          # 北京时间 5:00（UTC 21:00）
-    - cron: '40 3 * * *'          # 北京时间 11:40（UTC 3:40）  
+    - cron: '0 21 * * *'          # 北京时间 5:00（UTC 21:00）  
+    - cron: '40 3 * * *'          # 北京时间 11:40（UTC 3:40）    
     - cron: '0 9 * * sat,sun'     # 北京时间 17:00（UTC 9:00，仅周末）
   workflow_dispatch:              # 手动触发  
 
 jobs:
   deploy:
     runs-on: ubuntu-22.04
-    environment: AutoRead  # 指定环境  
+    environment: AutoRead  # 指定环境
 
     steps:
 
-    - name: Set DNS to Google's DNS  
+    - name: Set DNS to Google's DNS
       run: |
         echo "nameserver 8.8.8.8" | sudo tee /etc/resolv.conf
         echo "nameserver 8.8.4.4" | sudo tee -a /etc/resolv.conf
@@ -30,10 +30,10 @@ jobs:
 
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip  
-        pip install certifi==2024.8.30 charset-normalizer==3.4.0 idna==3.10 requests==2.32.3 urllib3==2.2.3    
+        python -m pip install --upgrade pip
+        pip install certifi==2024.8.30 charset-normalizer==3.4.0 idna==3.10 requests==2.32.3 urllib3==2.2.3
 
-     - name: Random delay between 0-10 minutes
+    - name: Random delay between 0-10 minutes
       run: |
         DELAY=$((RANDOM % 11)) # 生成 0 到 10 分钟的随机延迟（单位：分钟）
         echo "Delaying for $DELAY minutes..."
