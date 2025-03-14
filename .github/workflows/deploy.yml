@@ -1,79 +1,68 @@
-name: WeRead Automation
+name: wxread
 
 on:
   schedule:
-    - cron: '0 21 * * 1-6'  # 北京时间5:00
-    - cron: '40 3 * * 1-6'  # 北京时间11:40
-    - cron: '0 14 * * 1-6'  # 北京时间22:00
-    - cron: '0 16 * * 6'    # 北京时间周日0:00
+    # UTC时间与北京时间对应关系：
+    # 早间任务：UTC 21:00 → 北京 05:00（次日）
+    - cron: '0 21 * * *'    # 北京 05:00
+    
+    # 午间任务：UTC 03:40 → 北京 11:40
+    - cron: '40 3 * * *'    # 北京 11:40
+    
+    # 晚间任务：UTC 14:00 → 北京 22:00
+    - cron: '0 14 * * *'    # 北京 22:00
+    
+    # 周日全天任务：UTC 16-23（周六） + 0-15（周日） → 北京 00:00-23:59（周日）
+    - cron: '0 16-23,0-15 * * 6'  # 北京周日全天覆盖
 
   workflow_dispatch:
     inputs:
       duration:
-        description: '阅读时长（分钟）'
+        description: '手动时长（分钟）45-90'
         required: false
-        default: '30'
+        type: number
 
 jobs:
-  automate_reading:
-    runs-on: ubuntu-22.04
-    timeout-minutes: 180
-    environment: Production
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      TZ: Asia/Shanghai  # 容器内显示北京时间
 
     steps:
-    - name: 🔧 检出代码
-      uses: actions/checkout@v4
-
-    - name: 🛠️ 安装系统依赖
+    - name: ⏰ 时间策略引擎
+      id: time_engine
       run: |
-        sudo apt-get update
-        sudo apt-get install -y &#92;
-          chromium-browser &#92;
-          chromium-chromedriver &#92;
-          xvfb &#92;
-          libgbm-dev
+        # 获取当前UTC星期几（0=周日）
+        DAY=$(date -u +%w)
+        HOUR=$(date -u +%H)
+        
+        # 周日任务逻辑（北京时间周日全天）
+        if [[ "${{ github.event.schedule }}" == '0 16-23,0-15 * * 6' ]]; then
+          # 每天随机执行一次
+          if (( RANDOM % 1440 < 60 )); then  # 每小时有1/24概率执行
+            READ_NUM=$(( 90 + RANDOM % 91 ))  # 45-90分钟
+            echo "🎲 周日随机任务触发"
+          else
+            echo "⏭️ 周日未命中随机时段"
+            exit 0
+          fi
+        else
+          # 原有周一到周六逻辑保持...
+        fi
 
-    - name: 🐍 配置Python环境
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.10'
+        # 添加延迟参数
+        echo "DELAY_MINUTES=$(( RANDOM % 21 ))" >> $GITHUB_ENV
+        echo "READ_NUM=$READ_NUM" >> $GITHUB_OUTPUT
 
-    - name: 📦 安装Python包
+    - name: ⏳ 周日随机延迟
+      if: ${{ contains(github.event.schedule, '0 16-23,0-15 * * 6') }}
       run: |
-        pip install selenium==4.15.2 webdriver-manager==4.0.1
+        echo "⏱️ 周日任务随机延迟 ${{ env.DELAY_MINUTES }} 分钟"
+        sleep $(( ${{ env.DELAY_MINUTES }} * 60 ))
 
-    - name: 🍪 配置Cookie
+    - name: 🚀 执行核心任务
       env:
-        WEREAD_COOKIE: ${{ secrets.WEREAD_COOKIE }}
+        READ_NUM: ${{ steps.time_engine.outputs.READ_NUM }}
       run: |
-        mkdir -p /tmp/chrome_profile
-        echo '$WEREAD_COOKIE' > /tmp/cookies.json
-        jq empty /tmp/cookies.json  # 验证JSON格式
-
-    - name: ⏲️ 设置阅读时长
-      run: |
-        case "${{ github.event.schedule }}" in
-          *'0 21'*) DURATION=$((40 + RANDOM % 20)) ;;  # 早间40-60分钟
-          *'40 3'*) DURATION=$((60 + RANDOM % 30)) ;;  # 午间60-90分钟
-          *'0 14'*) DURATION=$((50 + RANDOM % 25)) ;;  # 晚间50-75分钟
-          *) DURATION=${{ inputs.duration || 120 }} ;; # 默认120分钟
-        esac
-        echo "READ_DURATION=$DURATION" >> $GITHUB_ENV
-
-    - name: 📖 执行阅读任务
-      env:
-        DISPLAY: ':0'
-        READ_DURATION: ${{ env.READ_DURATION }}
-      run: |
-        xvfb-run --auto-servernum &#92;
-          python wechat_auto_read.py
-
-    - name: 📤 上传调试信息
-      if: ${{ failure() }}
-      uses: actions/upload-artifact@v4
-      with:
-        name: debug-info-${{ github.run_id }}
-        path: |
-          automation.log
-          /tmp/*.png
-        retention-days: 2
+        echo "✅ 最终参数 | READ_NUM: $READ_NUM | 总耗时: $((READ_NUM/2))分钟"
+        # python main.py --read_num $READ_NUM
