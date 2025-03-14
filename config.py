@@ -15,11 +15,11 @@ PUSH_METHOD = "" or os.getenv('PUSH_METHOD')
 PUSHPLUS_TOKEN = "" or os.getenv("PUSHPLUS_TOKEN")
 # telegram推送时需填
 TELEGRAM_BOT_TOKEN = "" or os.getenv("TELEGRAM_BOT_TOKEN")
-TELEGRAM_CHAT_ID = "" or os.getenv("TELEGRAM_CHAT_ID")
+TELEGRAM_CHAT_ID = "" or os.getenv("TELEGRAM_CHAT_ID")  
 # wxpusher推送时需填
 WXPUSHER_SPT = "" or os.getenv("WXPUSHER_SPT")
 # read接口的bash命令，本地部署时可对应替换headers、cookies
-curl_str = os.getenv('WXREAD_CURL_BASH')
+curl_str = os.getenv('WXREAD_CURL_BASH')  
 
 # headers、cookies是一个省略模版，本地或者docker部署时对应替换
 cookies = {
@@ -43,20 +43,20 @@ headers = {
 建议保留区域|默认读三体，其它书籍自行测试时间是否增加
 """
 data = {
-    "appId": "wb182564874663h152492176",
-    "b": "ce032b305a9bc1ce0b0dd2a",
-    "c": "7cb321502467cbbc409e62d",
-    "ci": 70,
-    "co": 0,
-    "sm": "[插图]第三部广播纪元7年，程心艾AA说",
-    "pr": 74,
+    "appId": "wb182564874663h776775553",
+    "b": "f623242072a191daf6294db",
+    "c": "17c32d00329e17c276c8288",
+    "ci": 137,
+    "co": 7098,
+    "sm": "其实领导也挺不好当的。”我笑了笑，说",
+    "pr": 55,
     "rt": 30,
-    "ts": 1727660516749,
-    "rn": 31,
-    "sg": "991118cc229871a5442993ecb08b5d2844d7f001dbad9a9bc7b2ecf73dc8db7e",
-    "ct": 1727660516,
-    "ps": "b1d32a307a4c3259g016b67",
-    "pc": "080327b07a4c3259g018787",
+    "ts": 1739673850629,
+    "rn": 412,
+    "sg": "41b43c2f8b6b065530e28001b91c6f2ba36e70eb397ca016e891645bf18b27d8",
+    "ct": 1739673850,
+    "ps": "ca5326207a5e8814g01704b",
+    "pc": "f2332e707a5e8814g0181e0",
 }
 
 def convert(curl_command):
