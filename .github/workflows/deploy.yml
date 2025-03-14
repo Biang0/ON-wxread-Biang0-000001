@@ -4,7 +4,7 @@ on:
   schedule:
     - cron: '00 14 * * *'         # 北京22:00
     - cron: '0 21 * * *'          # 北京5:00
-    - cron: '40 3 * * *'          # 北京11:40  
+    - cron: '40 3 * * *'          # 北京11:40
     - cron: '0 9 * * sat,sun'     # 周末17:00
     - cron: '0 0 * * 1'           # 周一8:00
   workflow_dispatch:
@@ -72,7 +72,7 @@ jobs:
           echo "🕹️ 手动模式 | 范围: 90-180 (45-90分钟)"
         else
           # 获取触发规则
-          SCHEDULE="${{ github.event.schedule }}"  
+          SCHEDULE="${{ github.event.schedule }}"
 
           case "$SCHEDULE" in
             '0 21 * * *')
