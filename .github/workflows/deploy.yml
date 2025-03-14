@@ -6,7 +6,7 @@ on:
     - cron: '0 21 * * *'          # 北京5:00
     - cron: '40 3 * * *'          # 北京11:40
     - cron: '0 9 * * sat,sun'     # 周末17:00
-    - cron: '0 0 * * 1'           # 周一8:00
+    - cron: '0 0 * * 1'           # 周一8:00  
   workflow_dispatch:
     inputs:
       mode:
@@ -35,9 +35,9 @@ jobs:
         python-version: '3.10'
 
     - name: 📦 安装依赖
-      run: |
+      run: | 
         python -m pip install --upgrade pip
-        pip install certifi==2024.8.30 charset-normalizer==3.4.0 idna==3.10 requests==2.32.3 urllib3==2.2.3
+        pip install certifi==2024.8.30 charset-normalizer==3.4.0 idna==3.10 requests==2.32.3 urllib3==2.2.3  
         echo "✅ 依赖安装验证：$(pip list | grep requests)"
 
     - name: ⏱️ 随机延迟
