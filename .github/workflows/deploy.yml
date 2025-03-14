@@ -3,135 +3,145 @@ name: WeRead Automation
 on:
   schedule:
     # ==============================================
-    # 周一到周六任务（北京时间）
+    # 日常任务（周一到周六 北京时间）
     # ==============================================
-    - cron: '0 21 * * 1-6'         # 周一至六 21:00 UTC → 北京5:00（次日）
-    - cron: '40 3 * * 1-6'         # 周一至六 3:40 UTC → 北京11:40
-    - cron: '0 14 * * 1-6'         # 周一至六 14:00 UTC → 北京22:00
+    - cron: '0 21 * * 1-6'    # UTC 21:00 → 北京5:00（次日）
+    - cron: '40 3 * * 1-6'    # UTC 3:40 → 北京11:40
+    - cron: '0 14 * * 1-6'    # UTC 14:00 → 北京22:00
 
     # ==============================================
-    # 周日全天随机任务
+    # 周日任务入口（UTC周六16点 → 北京周日0点）
     # ==============================================
-    - cron: '0 16 * * 6'           # 周六16:00 UTC → 北京周日0:00（触发入口）
+    - cron: '0 16 * * 6'
 
   workflow_dispatch:
     inputs:
       mode:
-        description: '模式选择 (auto/manual)'
+        description: '运行模式 [auto:智能模式 / manual:手动调试]'
         required: false
         default: 'auto'
 
 jobs:
-  daily-task:
-    name: 日常任务（周一到周六）
+  daily_task:
+    name: 日常阅读任务（周一到六）
     runs-on: ubuntu-22.04
     environment: AutoRead
 
     steps:
     # ------------------------------
-    # 基础配置
+    # 初始化环境
     # ------------------------------
-    - name: 📥 检出代码库
+    - name: 🔧 环境准备
       uses: actions/checkout@v4
 
     # ------------------------------
     # 时段识别模块
     # ------------------------------
-    - name: 🕒 识别执行时段
+    - name: 🕒 识别触发时段
       id: time_period
       run: |
         case "${{ github.event.schedule }}" in
           *'0 21 * * '*)
             echo "PERIOD=morning" >> $GITHUB_ENV
-            echo "🌅 早间时段（北京5:00）" ;;
+            echo "🕖 时段：早间（北京5:00）" ;;
           *'40 3 * * '*)
-            echo "PERIOD=noon" >> $GITHUB_ENV 
-            echo "🌞 午间时段（北京11:40）" ;;
+            echo "PERIOD=noon" >> $GITHUB_ENV
+            echo "🕦 时段：午间（北京11:40）" ;;
           *'0 14 * * '*)
             echo "PERIOD=night" >> $GITHUB_ENV
-            echo "🌙 晚间时段（北京22:00）" ;;
+            echo "🕙 时段：晚间（北京22:00）" ;;
         esac
 
     # ------------------------------
-    # 动态参数生成
+    # 阅读参数生成器
     # ------------------------------
     - name: 🎯 生成阅读参数
       run: |
-        DAILY_QUOTA=456  # 3.8小时 × 120次/小时 = 456次
+        # 每日总配额：3.8小时 → 456次数（228分钟×2次/分钟）
+        DAILY_QUOTA=456
         
         case $PERIOD in
           morning)
-            NUM=$((90 + RANDOM % 61))  # 45-75分钟 ;;
+            # 早间：45-75分钟（90-150次）
+            NUM=$((90 + RANDOM % 61)) ;;
           noon)
-            NUM=$((120 + RANDOM % 61)) # 60-90分钟 ;;
+            # 午间：60-90分钟（120-180次）
+            NUM=$((120 + RANDOM % 61)) ;;
           night)
-            # 计算剩余额度（假设早午各用最小值）
-            USED=$((90 + 120))
-            REMAINING=$((DAILY_QUOTA - USED))
+            # 晚间：动态补充剩余额度
+            REMAINING=$((DAILY_QUOTA - (90 + 120)))
             NUM=$(( REMAINING > 0 ? REMAINING : 120 )) ;;
         esac
 
-        echo "📊 时段：$PERIOD | 生成值：$NUM (等效 $((NUM/2)) 分钟)"
+        echo "📈 生成参数：$NUM 次（等效 $((NUM/2)) 分钟）"
         echo "READ_NUM=$NUM" >> $GITHUB_ENV
 
     # ------------------------------
-    # 任务执行
+    # 任务执行模块
     # ------------------------------
-    - name: 🚀 执行阅读任务
+    - name: 🚀 执行阅读行为
       env:
-        API_URL: ${{ secrets.READ_API }}
+        API_ENDPOINT: ${{ secrets.READ_API }}
       run: |
-        curl -sS "${API_URL}?num=$READ_NUM"
+        # 添加请求伪装头
+        curl -sS -H "User-Agent: Mozilla/5.0" "${API_ENDPOINT}?num=$READ_NUM"
 
-  sunday-task:
-    name: 周日特别任务
-    runs-on: ubuntu-22.04 
+  sunday_task:
+    name: 周日全随机任务
+    runs-on: ubuntu-22.04
     environment: AutoRead
-    needs: []  # 独立任务
+    needs: []  # 独立执行
 
     steps:
     # ------------------------------
     # 时区严格校验
     # ------------------------------
-    - name: 🕐 验证北京时间
-      id: tz_check
+    - name: 🌐 验证北京时间
+      id: tz_verify
       run: |
         BEIJING_DAY=$(TZ='Asia/Shanghai' date +%u)
         if [ "$BEIJING_DAY" -ne 7 ]; then
           echo "❌ 校验失败：当前非北京时间周日"
           exit 1
         fi
-        echo "✅ 北京时间周日验证通过"
+        echo "✅ 时间校验通过：北京时间周日"
 
     # ------------------------------
     # 全时段随机延迟
     # ------------------------------
-    - name: ⏳ 生成随机延迟
+    - name: ⏳ 生成隐蔽延迟
       if: success()
       run: |
-        # 使用加密级随机数（0-1439分钟）
+        # 使用系统熵源生成加密级随机数
         DELAY=$(od -An -N2 -tu2 /dev/urandom | awk '{print $1 % 1440}')
-        H=$(( DELAY / 60 ))
-        M=$(( DELAY % 60 ))
         
-        echo "⏱️ 延迟：${DELAY}分钟（${H}小时${M}分）"
+        # 转换为易读格式
+        HOURS=$(( DELAY / 60 ))
+        MINS=$(( DELAY % 60 ))
+        
+        echo "⏱️ 延迟设置：${DELAY}分钟（${HOURS}小时${MINS}分）"
         sleep $(( DELAY * 60 ))
 
     # ------------------------------
     # 周日参数生成
     # ------------------------------
-    - name: 🎲 生成阅读量
+    - name: 🎲 生成周日参数
       run: |
-        NUM=$((120 + RANDOM % 121))  # 60-120分钟
+        # 周日特殊范围：60-120分钟
+        NUM=$((120 + RANDOM % 121))
+        echo "🔔 周日阅读量：$NUM 次（等效 $((NUM/2)) 分钟）"
         echo "READ_NUM=$NUM" >> $GITHUB_ENV
-        echo "🔔 周日阅读量：$NUM (等效 $((NUM/2)) 分钟)"
 
     # ------------------------------
-    # 隐蔽执行
+    # 隐蔽执行模块
     # ------------------------------
-    - name: 🚀 执行任务
+    - name: 🚀 执行周日任务
       env:
-        API_URL: ${{ secrets.READ_API }}
+        API_ENDPOINT: ${{ secrets.READ_API }}
       run: |
-        # 带伪装头部的请求
-        curl -sS -H "User-Agent: Mozilla/5.0" "${API_URL}?num=$READ_NUM"
+        # 获取实际执行时间
+        EXEC_TIME=$(TZ='Asia/Shanghai' date '+%Y-%m-%d %H:%M:%S')
+        echo "🕒 实际执行时间：$EXEC_TIME"
+        
+        # 带超时重试的请求
+        curl -sS -m 600 --retry 2 "${API_ENDPOINT}?num=$READ_NUM"
