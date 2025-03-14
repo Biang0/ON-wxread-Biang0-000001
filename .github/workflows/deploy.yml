@@ -2,10 +2,9 @@ name: wxread
 
 on:
   schedule:
-    # UTC时间换算（北京时间=UTC+8）
-    - cron: '0 21 * * *'   # 北京5:00（21+8=29→5:00）
-    - cron: '40 3 * * *'   # 北京11:40（3+8=11）
-    - cron: '0 14 * * *'   # 北京22:00（14+8=22）
+    - cron: '0 21 * * *'   # 北京5:00
+    - cron: '40 3 * * *'   # 北京11:40
+    - cron: '0 14 * * *'   # 北京22:00
   workflow_dispatch:
     inputs:
       mode:
@@ -20,78 +19,61 @@ jobs:
 
     steps:
     # ----------------- 初始化阶段 -----------------
-    - name: 🌐 网络配置
+    - name: 🔧 DNS配置
       run: |
         echo "nameserver 8.8.8.8" | sudo tee /etc/resolv.conf
         echo "nameserver 8.8.4.4" | sudo tee -a /etc/resolv.conf
-        echo "✅ DNS配置完成 | Google DNS生效"
+        echo "✅ DNS配置完成"
 
-    - name: 📦 代码仓库检出
+    - name: 📥 代码检出
       uses: actions/checkout@v4
       with:
-        persist-credentials: false
+        path: main-repo  # 指定检出目录
 
     # ---------------- 环境准备 --------------------
-    - name: 🐍 Python环境初始化
+    - name: 🐍 Python 3.10环境
       uses: actions/setup-python@v5
       with:
-        python-version: "3.10"
-        cache: 'pip'
+        python-version: '3.10'
+        cache: 'pip'  # 保留缓存机制
+        cache-dependency-path: ''  # 显式禁用requirements.txt检查
 
-    - name: 📚 依赖安装
+    - name: 📦 安装依赖
       run: |
-        pip install -r requirements.txt
-        echo "🔍 验证安装 | $(pip show requests | grep Version)"
+        cd main-repo  # 进入检出目录
+        python -m pip install --upgrade pip
+        # 直接指定依赖版本（替代requirements.txt）
+        pip install requests==2.32.3 urllib3==2.2.3 certifi==2024.8.30 charset-normalizer==3.4.0
+        echo "✅ 已安装依赖：$(pip list | grep requests)"
 
     # ---------------- 执行控制 --------------------
-    - name: 🎲 随机延迟
+    - name: ⏳ 随机延迟
       run: |
-        DELAY=$(( RANDOM % 21 ))  # 0-20分钟随机延迟
-        echo "⏳ 延迟设置：${DELAY}分钟"
-        sleep $(( DELAY * 60 ))
-        echo "⏰ 实际延迟：${DELAY}分钟"
+        DELAY=$((RANDOM % 21))
+        echo "生成延迟：${DELAY}分钟"
+        sleep $((DELAY * 60))
+        echo "延迟执行完成"
 
-    - name: 🕒 阅读时长生成
+    - name: 🕒 生成阅读参数
       run: |
         case "${{ github.event.schedule }}" in
-          '0 21 * * *')   # 早间任务
-            # 45-65分钟 → 90-130 READ_NUM
-            NUM=$(( RANDOM % 41 + 90 ))  # 41=130-90+1
-            echo "🌅 早间任务 | 范围：90-130（45-65分钟）" ;;
-          '40 3 * * *')   # 午间任务
-            NUM=$(( RANDOM % 61 + 120 ))  # 120-180（60-90分钟）
+          '0 21 * * *')
+            NUM=$((RANDOM % 41 + 90))  # 45-65分钟
+            echo "🌅 早间任务 | 范围：90-130" ;;
+          '40 3 * * *')
+            NUM=$((RANDOM % 61 + 120))  # 60-90分钟
             echo "🌞 午间任务 | 范围：120-180" ;;
-          '0 14 * * *')   # 晚间任务
-            NUM=$(( RANDOM % 61 + 180 ))  # 180-240（90-120分钟）
+          '0 14 * * *')
+            NUM=$((RANDOM % 61 + 180))  # 90-120分钟
             echo "🌙 晚间任务 | 范围：180-240" ;;
           *)
-            NUM=120  # 安全默认值
-            echo "⚠️ 未知触发类型 | 使用默认值" ;;
+            NUM=150
+            echo "⚠️ 使用默认值" ;;
         esac
-
-        # 强制早间范围限制
-        if [[ "${{ github.event.schedule }}" == '0 21 * * *' ]]; then
-          NUM=$(( NUM < 90 ? 90 : NUM ))  # 下限保护
-          NUM=$(( NUM > 130 ? 130 : NUM ))  # 上限保护
-        fi
-        
-        echo "📊 生成数值：READ_NUM=${NUM}（等效 $((NUM/2)) 分钟）"
         echo "READ_NUM=$NUM" >> $GITHUB_ENV
 
-    - name: 🚀 执行阅读脚本
+    - name: 🚀 执行主程序
       env:
         WXREAD_CURL_BASH: ${{ secrets.WXREAD_CURL_BASH }}
-      run: |
-        python main.py
-        echo "🔚 脚本退出码：$?"
-
-    # ---------------- 结果验证 --------------------
-    - name: 📝 早间任务验证
-      if: contains(github.event.schedule, '0 21 * * *')
-      run: |
-        if [ $READ_NUM -lt 90 ] || [ $READ_NUM -gt 130 ]; then
-          echo "❌ 数值异常 | 实际值：$READ_NUM"
-          exit 1
-        else
-          echo "✅ 合规检查通过 | 有效范围：90-130"
-        fi
+      working-directory: main-repo  # 指定工作目录
+      run: python main.py
