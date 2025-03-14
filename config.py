@@ -14,7 +14,7 @@ PUSH_METHOD = "" or os.getenv('PUSH_METHOD')
 # pushplus推送时需填
 PUSHPLUS_TOKEN = "" or os.getenv("PUSHPLUS_TOKEN")
 # telegram推送时需填
-TELEGRAM_BOT_TOKEN = "" or os.getenv("TELEGRAM_BOT_TOKEN")
+TELEGRAM_BOT_TOKEN = "" or os.getenv("TELEGRAM_BOT_TOKEN")  
 TELEGRAM_CHAT_ID = "" or os.getenv("TELEGRAM_CHAT_ID")
 # wxpusher推送时需填
 WXPUSHER_SPT = "" or os.getenv("WXPUSHER_SPT")
@@ -44,20 +44,20 @@ headers = {
 建议保留区域|默认读三体，其它书籍自行测试时间是否增加
 """
 data = {
-    "appId": "wb182564874663h152492176",
-    "b": "ce032b305a9bc1ce0b0dd2a",
-    "c": "7cb321502467cbbc409e62d",
-    "ci": 70,
-    "co": 0,
-    "sm": "[插图]第三部广播纪元7年，程心艾AA说",
-    "pr": 74,
-    "rt": 30,
-    "ts": 1727660516749,
-    "rn": 31,
-    "sg": "991118cc229871a5442993ecb08b5d2844d7f001dbad9a9bc7b2ecf73dc8db7e",
-    "ct": 1727660516,
-    "ps": "b1d32a307a4c3259g016b67",
-    "pc": "080327b07a4c3259g018787",
+    "appId": "wb182564874663h1964571299",  
+    "b": "a57325c05c8ed3a57224187",  
+    "c": "ad132b60313bad13a2a004a",  
+    "ci": 315,  
+    "co": 338,  
+    "sm": "第313章道统(3)拿不到钱，又被人耍了",
+    "pr": 100,  
+    "rt": 4,  
+    "ts": 1741932112099,  
+    "rn": 78,  
+    "sg": "7e7ac95c8175f8c636cbf93beecb545fb9e83ef1f3e8623d07e032b93009ac37",  
+    "ct": 1741932112,  
+    "ps": "4b432a307a61fa3ag014a79",  
+    "pc": "f93324307a61fa3ag01604f",  
 }
 
 
