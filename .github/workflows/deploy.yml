@@ -34,6 +34,19 @@ jobs:
     - name: 🔧 检出代码库
       uses: actions/checkout@v4
 
+    - name: 🐍 设置Python环境
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: 🌐 安装浏览器依赖
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y chromium-browser chromium-chromedriver
+
+    - name: 📦 安装Python包
+      run: pip install selenium webdriver-manager
+
     # ------------------------------
     # 时段识别模块
     # ------------------------------
@@ -53,121 +66,75 @@ jobs:
         esac
 
     # ------------------------------
-    # 阅读参数生成器
+    # 阅读参数生成器（分钟制）
     # ------------------------------
     - name: 🎯 生成阅读参数
       run: |
-        # 每日总配额：3.8小时 → 456次数（228分钟×2次/分钟）
-        DAILY_QUOTA=456
-        
         case $PERIOD in
           morning)
-            # 早间：45-75分钟（90-150次）
-            NUM=$((90 + RANDOM % 61)) ;;
+            # 早间：45-75分钟
+            DURATION=$((45 + RANDOM % 31)) ;;
           noon)
-            # 午间：60-90分钟（120-180次）
-            NUM=$((120 + RANDOM % 61)) ;;
+            # 午间：60-90分钟
+            DURATION=$((60 + RANDOM % 31)) ;;
           night)
-            # 晚间：动态补充剩余额度
-            REMAINING=$((DAILY_QUOTA - (90 + 120)))
-            NUM=$(( REMAINING > 0 ? REMAINING : 120 )) ;;
+            # 晚间：动态补充剩余时长（总配额228分钟）
+            REMAINING=$((228 - (75 + 90)))
+            DURATION=$(( REMAINING > 30 ? REMAINING : 90 )) ;;
         esac
 
-        echo "READ_NUM=$NUM" >> $GITHUB_ENV
-        echo "📈 生成参数：$NUM 次（等效 $((NUM/2)) 分钟）"
+        echo "READ_DURATION=$DURATION" >> $GITHUB_ENV
+        echo "📈 生成参数：$DURATION 分钟"
 
     # ------------------------------
-    # 任务执行模块（带防御性检查）
+    # 浏览器自动化模块
     # ------------------------------
     - name: 🚀 执行阅读行为
       env:
-        API_ENDPOINT: ${{ secrets.READ_API_ENDPOINT }}
-        READ_NUM: ${{ env.READ_NUM }}
+        WEREAD_COOKIE: ${{ secrets.WEREAD_COOKIE }}
+        READ_DURATION: ${{ env.READ_DURATION }}
       run: |
         # 防御性检查
-        if [ -z "$API_ENDPOINT" ]; then
-          echo "❌ 错误：未检测到API端点配置"
+        if [ -z "$WEREAD_COOKIE" ]; then
+          echo "❌ 错误：未检测到微信读书Cookie"
           exit 1
         fi
 
-        if [ -z "$READ_NUM" ]; then
-          echo "❌ 错误：阅读次数未生成"
-          exit 1
-        fi
+        # 启动虚拟显示并运行自动化脚本
+        export DISPLAY=:0
+        xvfb-run --auto-servernum python wechat_read_local.py
 
-        # 带重试机制的请求
-        for i in {1..3}; do
-          curl -sS -m 30 -H "User-Agent: Mozilla/5.0" &#92;
-            "${API_ENDPOINT}?num=$READ_NUM" && break
-          echo "⚠️ 请求失败，10秒后重试..."
-          sleep 10
-        done
+    # ------------------------------
+    # 日志收集（仅失败时）
+    # ------------------------------
+    - name: 📤 上传调试信息
+      if: ${{ failure() }}
+      uses: actions/upload-artifact@v3
+      with:
+        name: error-info
+        path: |
+          *.log
+          /tmp/chrome-session/
 
   sunday_task:
     name: 周日全随机任务
     runs-on: ubuntu-22.04
     environment: AutoRead
+    needs: daily_task
 
     steps:
-    # ------------------------------
-    # 时区配置模块
-    # ------------------------------
-    - name: 🌐 配置上海时区
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y tzdata
-        echo "Asia/Shanghai" | sudo tee /etc/timezone
-        sudo dpkg-reconfigure -f noninteractive tzdata
+    - name: 🌐 配置浏览器环境
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
 
-    # ------------------------------
-    # 时间验证模块
-    # ------------------------------
-    - name: 🕐 验证北京时间
-      run: |
-        BEIJING_TIME=$(TZ='Asia/Shanghai' date '+%Y-%m-%d %H:%M:%S')
-        BEIJING_DAY=$(TZ='Asia/Shanghai' date +%u)
-        
-        echo "当前北京时间: $BEIJING_TIME"
-        if [ "$BEIJING_DAY" -ne 7 ]; then
-          echo "❌ 校验失败：当前非北京时间周日"
-          exit 1
-        fi
-        echo "✅ 时间校验通过：北京时间周日"
-
-    # ------------------------------
-    # 随机延迟模块
-    # ------------------------------
-    - name: ⏳ 生成全随机延迟
-      run: |
-        # 生成0-1439分钟随机延迟（覆盖全天）
-        DELAY=$(( RANDOM % 1440 ))
-        HOURS=$(( DELAY / 60 ))
-        MINUTES=$(( DELAY % 60 ))
-        
-        echo "⏱️ 延迟设置：${DELAY}分钟（${HOURS}小时${MINUTES}分）"
-        sleep $(( DELAY * 60 ))
-
-    # ------------------------------
-    # 周日参数生成
-    # ------------------------------
-    - name: 🎲 生成阅读参数
-      run: |
-        NUM=$((120 + RANDOM % 121))  # 120-240次（60-120分钟）
-        echo "READ_NUM=$NUM" >> $GITHUB_ENV
-        echo "🔔 周日阅读量：$NUM 次（等效 $((NUM/2)) 分钟）"
-
-    # ------------------------------
-    # 请求执行模块
-    # ------------------------------
-    - name: 🚀 执行周日任务
+    - name: 🎲 随机时长阅读
       env:
-        API_ENDPOINT: ${{ secrets.READ_API_ENDPOINT }}
-        READ_NUM: ${{ env.READ_NUM }}
+        WEREAD_COOKIE: ${{ secrets.WEREAD_COOKIE }}
       run: |
-        # 获取实际执行时间
-        EXEC_TIME=$(TZ='Asia/Shanghai' date '+%Y-%m-%d %H:%M:%S')
-        echo "🕒 实际执行时间：$EXEC_TIME"
+        # 生成120-180分钟随机时长
+        RANDOM_DURATION=$((120 + RANDOM % 61))
+        echo "🎲 周日随机时长：$RANDOM_DURATION 分钟"
         
-        # 带调试信息的请求
-        curl -v -sS -m 60 -H "User-Agent: Mozilla/5.0" &#92;
-          "${API_ENDPOINT}?num=$READ_NUM"
+        export DISPLAY=:0
+        xvfb-run --auto-servernum python wechat_read_local.py $RANDOM_DURATION
