@@ -1,68 +1,133 @@
-name: wxread
+name: WeRead AutoBot
 
 on:
   schedule:
-    # UTC时间与北京时间对应关系：
-    # 早间任务：UTC 21:00 → 北京 05:00（次日）
-    - cron: '0 21 * * *'    # 北京 05:00
-    
-    # 午间任务：UTC 03:40 → 北京 11:40
-    - cron: '40 3 * * *'    # 北京 11:40
-    
-    # 晚间任务：UTC 14:00 → 北京 22:00
-    - cron: '0 14 * * *'    # 北京 22:00
-    
-    # 周日全天任务：UTC 16-23（周六） + 0-15（周日） → 北京 00:00-23:59（周日）
-    - cron: '0 16-23,0-15 * * 6'  # 北京周日全天覆盖
+    # UTC时间与北京时间对照（周一到周六）
+    - cron: '0 21 * * 1-6'    # 北京周二到周一 05:00 (UTC周一21:00)
+    - cron: '50 3 * * 1-6'    # 北京周二到周一 11:50 (UTC 03:50)
+    - cron: '0 14 * * 1-6'    # 北京周二到周一 22:00 (UTC 14:00)
+    # 周日全天覆盖（UTC周六16:00-周日15:59）
+    - cron: '0 16-23 * * 6'   # 北京周日00:00-07:59
+    - cron: '0 0-15 * * 0'    # 北京周日08:00-23:59
 
   workflow_dispatch:
     inputs:
+      mode:
+        description: '运行模式 (auto=自动生成/manual=手动输入)'
+        required: false
+        default: 'auto'
       duration:
-        description: '手动时长（分钟）45-90'
+        description: '手动时长（分钟）30-240'
         required: false
         type: number
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
-      TZ: Asia/Shanghai  # 容器内显示北京时间
+      TZ: Asia/Shanghai  # 容器内日志显示北京时间
+      WEEKLY_TARGET: 1488  # 每周目标分钟数（24.8h=1488min）
 
     steps:
+    # ========================
+    # 阶段1：时间策略引擎
+    # ========================
     - name: ⏰ 时间策略引擎
       id: time_engine
       run: |
-        # 获取当前UTC星期几（0=周日）
+        # 获取UTC星期几（0=周日）
         DAY=$(date -u +%w)
         HOUR=$(date -u +%H)
+        echo "::group::📅 时间策略分析"
+        echo "UTC时间: $(date -u +'%Y-%m-%d %H:%M:%S')"
+        echo "北京时间: $(date +'%Y-%m-%d %H:%M:%S')"
+        echo "触发方式: ${{ github.event&#95;name }}"
+        echo "触发规则: ${{ github.event.schedule || '手动触发' }}"
         
-        # 周日任务逻辑（北京时间周日全天）
-        if [[ "${{ github.event.schedule }}" == '0 16-23,0-15 * * 6' ]]; then
-          # 每天随机执行一次
-          if (( RANDOM % 1440 < 60 )); then  # 每小时有1/24概率执行
-            READ_NUM=$(( 90 + RANDOM % 91 ))  # 45-90分钟
-            echo "🎲 周日随机任务触发"
+        # 手动模式处理
+        if [[ "${{ github.event_name }}" == 'workflow_dispatch' ]]; then
+          MODE="${{ inputs.mode }}"
+          if [[ "$MODE" == "manual" ]]; then
+            DURATION=${{ inputs.duration || 0 }}
+            if (( DURATION < 30 || DURATION > 240 )); then
+              echo "⚠️ 手动时长$DURATION无效，生成安全值"
+              DURATION=$((60 + RANDOM % 121))  # 60-180分钟
+            fi
+            READ_NUM=$(( DURATION &#42; 2 ))
+            echo "手动模式 | 时长: ${DURATION}分钟"
+          else
+            READ_NUM=$(( 90 + RANDOM % 301 ))  # 45-150分钟
+            echo "自动模式 | 随机时长: $((READ_NUM/2))分钟"
+          fi
+        # 周日任务
+        elif [[ "$DAY" -eq 0 || "${{ github.event.schedule }}" =~ '0 16-23' || "${{ github.event.schedule }}" =~ '0 0-15' ]]; then
+          if (( RANDOM % 1440 < 60 )); then  # 每天随机触发一次
+            READ_NUM=$(( 60 + RANDOM % 181 ))  # 30-120分钟
+            echo "🎲 周日随机任务触发 | 时长: $((READ_NUM/2))分钟"
           else
             echo "⏭️ 周日未命中随机时段"
             exit 0
           fi
+        # 周一到周六任务
         else
-          # 原有周一到周六逻辑保持...
+          case "${{ github.event.schedule }}" in
+            '0 21 * * 1-6')  # 早间任务
+              BASE=222  # 3.7小时=222分钟
+              ;;
+            '50 3 * * 1-6')  # 午间任务
+              BASE=222
+              ;;
+            '0 14 * * 1-6')  # 晚间任务
+              BASE=246  # 4.1小时=246分钟
+              ;;
+          esac
+          READ_NUM=$(( BASE + RANDOM % 25 ))  # 3.7-4.2小时
+          echo "日常任务 | 时段: ${BASE}基准 | 随机增量: $((READ_NUM - BASE))分钟"
         fi
+        
+        # 生成延迟参数
+        DELAY=$(( RANDOM % 21 ))  # 0-20分钟
+        echo "::endgroup::"
+        
+        # 输出参数
+        echo "READ_NUM=$READ&#95;NUM" >> $GITHUB_OUTPUT
+        echo "DELAY=$DELAY" >> $GITHUB_ENV
+        echo "DAY_TYPE=$([[ $DAY -eq 0 ]] && echo 'weekend' || echo 'weekday')" >> $GITHUB_ENV
 
-        # 添加延迟参数
-        echo "DELAY_MINUTES=$(( RANDOM % 21 ))" >> $GITHUB_ENV
-        echo "READ_NUM=$READ_NUM" >> $GITHUB_OUTPUT
-
-    - name: ⏳ 周日随机延迟
-      if: ${{ contains(github.event.schedule, '0 16-23,0-15 * * 6') }}
+    # ========================
+    # 阶段2：延迟执行
+    # ========================
+    - name: ⏳ 智能延迟
+      if: ${{ env.DELAY > 0 }}
       run: |
-        echo "⏱️ 周日任务随机延迟 ${{ env.DELAY_MINUTES }} 分钟"
-        sleep $(( ${{ env.DELAY_MINUTES }} * 60 ))
+        echo "⏱️ 随机延迟 ${{ env.DELAY }} 分钟（规避整点高峰）"
+        sleep $(( ${{ env.DELAY }} * 60 ))
 
-    - name: 🚀 执行核心任务
+    # ========================
+    # 阶段3：执行核心任务
+    # ========================
+    - name: 🚀 执行阅读任务
       env:
         READ_NUM: ${{ steps.time_engine.outputs.READ_NUM }}
       run: |
-        echo "✅ 最终参数 | READ_NUM: $READ_NUM | 总耗时: $((READ_NUM/2))分钟"
-        # python main.py --read_num $READ_NUM
+        echo "::group::📊 任务参数摘要"
+        echo "执行时间: $(date +'%Y-%m-%d %H:%M:%S')"
+        echo "当日类型: ${{ env.DAY_TYPE }}"
+        echo "阅读次数: $READ&#95;NUM (等效$((READ_NUM/2))分钟)"
+        echo "累计时长: $((READ&#95;NUM/2 + ${{ env.DELAY }}))分钟"
+        echo "::endgroup::"
+        
+        # 模拟任务执行（替换为实际调用）
+        for ((i=1; i<=$READ&#95;NUM; i++)); do
+          echo "📖 阅读进度 [$i/$READ&#95;NUM] 当前时间: $(date +'%H:%M:%S')"
+          sleep 30
+        done
+
+    # ========================
+    # 阶段4：周报生成
+    # ========================
+    - name: 📈 周报生成
+      if: ${{ always() }}
+      run: |
+        echo "::warning::周报功能开发中，预计2025Q2上线"
+        # 此处可集成数据库记录每周总时长
