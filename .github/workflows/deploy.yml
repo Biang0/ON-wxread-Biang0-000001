@@ -42,7 +42,7 @@ jobs:
 
     - name: ⏱️ 随机延迟
       run: |
-        DELAY=$((RANDOM % 21))
+        DELAY=$((RANDOM % 1))  
         echo "生成的随机延迟：${DELAY}分钟"
         sleep $((DELAY * 60))
         echo "延迟执行完成"
