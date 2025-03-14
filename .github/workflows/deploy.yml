@@ -3,7 +3,7 @@ name: wxread
 on:
   schedule:
     - cron: '00 14 * * *'         # 北京22:00
-    - cron: '0 21 * * *'          # 北京5:00
+    - cron: '0 21 * * *'          # 北京5:00  
     - cron: '40 3 * * *'          # 北京11:40
     - cron: '0 9 * * sat,sun'     # 周末17:00
     - cron: '0 0 * * 1'           # 周一8:00
@@ -50,9 +50,9 @@ jobs:
     - name: 🎲 周随机检查
       if: github.event_name == 'schedule' && github.event.schedule == '0 0 * * 1'
       run: |
-        CHECK=$((RANDOM % 7))  
+        CHECK=$((RANDOM % 7))
         echo "随机数：$CHECK (需要等于0)"
-        if [ $CHECK -ne 0 ]; then
+        if [ $CHECK -ne 0 ]; then  
           echo "⏭️ 跳过周随机任务"
           exit 0
         fi
@@ -63,10 +63,10 @@ jobs:
         # 调试信息
         echo "=== 触发事件分析 ==="
         echo "事件类型: ${{ github.event_name }}"
-        echo "输入模式: ${{ github.event.inputs.mode }}"  
-        echo "定时规则: ${{ github.event.schedule }}"  
+        echo "输入模式: ${{ github.event.inputs.mode }}"
+        echo "定时规则: ${{ github.event.schedule }}"
 
-        if [[ "${{ github.event.inputs.mode }}" == "manual" ]]; then  
+        if [[ "${{ github.event.inputs.mode }}" == "manual" ]]; then
           # 手动模式
           NUM=$((RANDOM % 91 + 90))
           echo "🕹️ 手动模式 | 范围: 90-180 (45-90分钟)"
@@ -92,7 +92,7 @@ jobs:
               echo "🎰 周随机任务 | 范围: 120-240" ;;
             *)
               # 安全模式：生成默认值
-              NUM=$((RANDOM % 61 + 120))
+              NUM=$((RANDOM % 61 + 120))  
               echo "⚠️ 未知触发类型 | 启用安全默认值: 120-180" ;;
           esac
         fi
