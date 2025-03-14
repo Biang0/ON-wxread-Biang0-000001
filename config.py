@@ -17,7 +17,7 @@ PUSHPLUS_TOKEN = "" or os.getenv("PUSHPLUS_TOKEN")
 TELEGRAM_BOT_TOKEN = "" or os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = "" or os.getenv("TELEGRAM_CHAT_ID")
 # wxpusher推送时需填
-WXPUSHER_SPT = "" or os.getenv("WXPUSHER_SPT")
+WXPUSHER_SPT = "" or os.getenv("WXPUSHER_SPT")  
 # read接口的bash命令，本地部署时可对应替换headers、cookies
 curl_str = os.getenv('WXREAD_CURL_BASH')
 
@@ -34,7 +34,7 @@ cookies = {
 
 headers = {
     'accept': 'application/json, text/plain, */*',
-    'accept-language': 'zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6,ko;q=0.5',
+    'accept-language': 'zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6,ko;q=0.5',  
     'baggage': 'sentry-environment=production,sentry-release=dev-1730698697208,sentry-public_key=ed67ed71f7804a038e898ba54bd66e44,sentry-trace_id=1ff5a0725f8841088b42f97109c45862',
     'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 Edg/131.0.0.0',
 }
@@ -44,20 +44,20 @@ headers = {
 建议保留区域|默认读三体，其它书籍自行测试时间是否增加
 """
 data = {
-    "appId": "",
-    "b": "",  
-    "c": "",  
-    "ci": 70,  
-    "co": 0,  
-    "sm": "",
-    "pr": 74,
-    "rt": 30,
-    "ts": 1727660516749,  
-    "rn": 31,
-    "sg": "",  
-    "ct": 1727660516,
-    "ps": "",  
-    "pc": "",  
+    "appId": ""
+    "b": ""
+    "c": ""
+    "ci": 70    
+    "co": 0 
+    "sm": ""
+    "pr": 74
+    "rt": 30
+    "ts": 1727660516749 
+    "rn": 31
+    "sg": ""    
+    "ct": 1727660516
+    "ps": ""
+    "pc": ""
 }
 
 
