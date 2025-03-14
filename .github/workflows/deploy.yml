@@ -1,4 +1,4 @@
-name: WeRead Stable Bot
+name: WeRead AutoBot Pro
 
 on:
   schedule:
@@ -22,19 +22,36 @@ jobs:
       TZ: Asia/Shanghai
       WXPUSHER_SPT: ${{ secrets.WXPUSHER_SPT }}
       PUSH_METHOD: ${{ secrets.PUSH_METHOD }}
+      WXREAD_CURL_BASH: ${{ secrets.WXREAD_CURL_BASH }}
 
     steps:
     # ========================
-    # 阶段1：参数配置
+    # 阶段1：环境准备
     # ========================
-    - name: ⚙️ 参数初始化
+    - name: 🛠 检出代码
+      uses: actions/checkout@v4
+
+    - name: 🐍 设置Python环境
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: 📦 安装依赖
+      run: |
+        python -m pip install --upgrade pip
+        pip install requests cryptography
+
+    # ========================
+    # 阶段2：动态参数配置
+    # ========================
+    - name: ⚙️ 参数引擎
       id: config
       run: |
         # 手动模式处理
         if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
           if [[ -n "${{ inputs.duration }}" ]]; then
-            READ_NUM=${{ inputs.duration }}
-            echo "🛠️ 手动模式 | 时长: $READ_NUM 分钟"
+            READ_NUM=$(( ${{ inputs.duration }} * 2 ))  # 转换为阅读次数
+            echo "🛠️ 手动模式 | 次数: $READ_NUM"
           else
             echo "::error::手动触发需指定duration参数" && exit 1
           fi
@@ -42,70 +59,50 @@ jobs:
           # 自动模式逻辑
           day=$(date +%u)
           if [[ $day == 7 ]]; then  # 周日
-            READ_NUM=$(( 90 + RANDOM % 151 ))  # 90-240分钟
+            READ_NUM=$(( 180 + RANDOM % 121 ))  # 180-300次（90-150分钟）
           else
-            READ_NUM=$(( 45 + RANDOM % 76 ))   # 45-120分钟
+            READ_NUM=$(( 90 + RANDOM % 61 ))    # 90-150次（45-75分钟）
           fi
         fi
 
         # 参数校验
-        if (( READ_NUM < 30 || READ_NUM > 240 )); then
-          echo "::error::时长超出范围(30-240): $READ_NUM" && exit 1
+        if (( READ_NUM < 60 || READ_NUM > 300 )); then
+          echo "::error::参数越界(60-300): $READ_NUM" && exit 1
         fi
 
-        echo "READ_NUM=$READ_NUM" >> $GITHUB_OUTPUT
+        echo "READ_NUM=$READ_NUM" >> $GITHUB_ENV
+        echo "::notice::生成阅读次数: $READ_NUM"
 
     # ========================
-    # 阶段2：核心任务
+    # 阶段3：核心执行逻辑
     # ========================
     - name: 🤖 执行阅读任务
       env:
-        READ_NUM: ${{ steps.config.outputs.READ_NUM }}
+        READ_NUM: ${{ env.READ_NUM }}
+        WXPUSHER_TOPIC_ID: ${{ secrets.WXPUSHER_TOPIC_ID }}
+        WXPUSHER_UIDS: ${{ secrets.WXPUSHER_UIDS }}
       run: |
-        echo "✅ 开始执行阅读 | 计划时长: ${READ_NUM}分钟"
-        # 实际任务示例（替换为你的真实逻辑）
-        for ((i=1; i<=READ_NUM; i++)); do
-          echo "[${i}/${READ_NUM}] 正在阅读..."
-          sleep 60  # 模拟每分钟进度
-        done
+        echo "✅ 启动自动化脚本 | 计划次数: $READ_NUM"
+        python -u main.py
 
     # ========================
-    # 阶段3：通知系统
+    # 阶段4：智能通知系统
     # ========================
-    - name: 📢 微信推送报告
-      if: always()
-      env:
-        TOPIC_ID: ${{ secrets.WXPUSHER_TOPIC_ID }}
-        UID_LIST: ${{ secrets.WXPUSHER_UIDS }}
-      run: |
-        # 构建消息内容
-        status="${{ job.status }}"
-        run_url="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-        msg="微信读书任务报告：
-        ➤ 状态: ${status^^}
-        ➤ 执行时长: ${{ env.READ_NUM }}分钟
-        ➤ 日志详情: $run_url"
-
-        # 发送请求
-        case "$PUSH_METHOD" in
-          topic)
-            curl -sS -X POST "https://wxpusher.zjiecode.com/api/send/message" &#92;
-              -H "Content-Type: application/json" &#92;
-              -d '{
-                "appToken": "'"$WXPUSHER_SPT"'",
-                "content": "'"$msg"'",
-                "contentType": 3,
-                "topicIds": ['"$TOPIC_ID"']
-              }' ;;
-          uid)
-            IFS=',' read -ra UIDS <<< "$UID_LIST"
-            for uid in "${UIDS[@]}"; do
-              curl -sS -X POST "https://wxpusher.zjiecode.com/api/send/message" &#92;
-                -d "appToken=$WXPUSHER_SPT&content=$msg&contentType=3&uids=$uid"
-              sleep 0.5
-            done ;;
-          *)
-            echo "::error::未知推送方式: $PUSH_METHOD" && exit 1 ;;
-        esac
-
-        echo "通知发送状态码: $?"
+    - name: 📢 异常监控
+      if: failure()
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const status = process.env.STATUS || 'UNKNOWN'
+          const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
+          const message = `❌ 任务异常终止&#92;n▸ 状态: ${status}&#92;n▸ 日志: ${runUrl}`
+          
+          // 企业微信机器人备用通知
+          await fetch('https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=YOUR_KEY', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              msgtype: "text",
+              text: { content: message }
+            })
+          })
