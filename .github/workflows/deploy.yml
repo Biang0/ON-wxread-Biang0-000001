@@ -1,133 +1,105 @@
-name: WeRead AutoBot
+name: WeRead Bot with WxPusher
 
 on:
   schedule:
-    # UTC时间与北京时间对照（周一到周六）
-    - cron: '0 21 * * 1-6'    # 北京周二到周一 05:00 (UTC周一21:00)
-    - cron: '50 3 * * 1-6'    # 北京周二到周一 11:50 (UTC 03:50)
-    - cron: '0 14 * * 1-6'    # 北京周二到周一 22:00 (UTC 14:00)
-    # 周日全天覆盖（UTC周六16:00-周日15:59）
+    - cron: '0 21 * * 1-6'    # 北京周二到周六 05:00
+    - cron: '50 3 * * 1-6'    # 北京11:50
+    - cron: '0 14 * * 1-6'    # 北京22:00
     - cron: '0 16-23 * * 6'   # 北京周日00:00-07:59
     - cron: '0 0-15 * * 0'    # 北京周日08:00-23:59
 
   workflow_dispatch:
     inputs:
-      mode:
-        description: '运行模式 (auto=自动生成/manual=手动输入)'
-        required: false
-        default: 'auto'
       duration:
-        description: '手动时长（分钟）30-240'
+        description: '运行时长（分钟）30-240'
         required: false
         type: number
 
 jobs:
-  deploy:
+  wxread_task:
     runs-on: ubuntu-24.04
     env:
-      TZ: Asia/Shanghai  # 容器内日志显示北京时间
-      WEEKLY_TARGET: 1488  # 每周目标分钟数（24.8h=1488min）
+      TZ: Asia/Shanghai
+      WXPUSHER_SPT: ${{ secrets.WXPUSHER_SPT }}  # WxPusher appToken
+      PUSH_METHOD: ${{ secrets.PUSH_METHOD }}    # 推送方式（topic/uid）
 
     steps:
     # ========================
-    # 阶段1：时间策略引擎
+    # 阶段1：参数初始化
     # ========================
-    - name: ⏰ 时间策略引擎
-      id: time_engine
+    - name: ⚙️ 参数初始化
+      id: config
       run: |
-        # 获取UTC星期几（0=周日）
-        DAY=$(date -u +%w)
-        HOUR=$(date -u +%H)
-        echo "::group::📅 时间策略分析"
-        echo "UTC时间: $(date -u +'%Y-%m-%d %H:%M:%S')"
-        echo "北京时间: $(date +'%Y-%m-%d %H:%M:%S')"
-        echo "触发方式: ${{ github.event&#95;name }}"
-        echo "触发规则: ${{ github.event.schedule || '手动触发' }}"
-        
         # 手动模式处理
-        if [[ "${{ github.event_name }}" == 'workflow_dispatch' ]]; then
-          MODE="${{ inputs.mode }}"
-          if [[ "$MODE" == "manual" ]]; then
-            DURATION=${{ inputs.duration || 0 }}
-            if (( DURATION < 30 || DURATION > 240 )); then
-              echo "⚠️ 手动时长$DURATION无效，生成安全值"
-              DURATION=$((60 + RANDOM % 121))  # 60-180分钟
-            fi
-            READ_NUM=$(( DURATION &#42; 2 ))
-            echo "手动模式 | 时长: ${DURATION}分钟"
-          else
-            READ_NUM=$(( 90 + RANDOM % 301 ))  # 45-150分钟
-            echo "自动模式 | 随机时长: $((READ_NUM/2))分钟"
-          fi
-        # 周日任务
-        elif [[ "$DAY" -eq 0 || "${{ github.event.schedule }}" =~ '0 16-23' || "${{ github.event.schedule }}" =~ '0 0-15' ]]; then
-          if (( RANDOM % 1440 < 60 )); then  # 每天随机触发一次
-            READ_NUM=$(( 60 + RANDOM % 181 ))  # 30-120分钟
-            echo "🎲 周日随机任务触发 | 时长: $((READ_NUM/2))分钟"
-          else
-            echo "⏭️ 周日未命中随机时段"
-            exit 0
-          fi
-        # 周一到周六任务
+        if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+          READ_NUM=${{ inputs.duration || 60 }}
         else
-          case "${{ github.event.schedule }}" in
-            '0 21 * * 1-6')  # 早间任务
-              BASE=222  # 3.7小时=222分钟
-              ;;
-            '50 3 * * 1-6')  # 午间任务
-              BASE=222
-              ;;
-            '0 14 * * 1-6')  # 晚间任务
-              BASE=246  # 4.1小时=246分钟
-              ;;
-          esac
-          READ_NUM=$(( BASE + RANDOM % 25 ))  # 3.7-4.2小时
-          echo "日常任务 | 时段: ${BASE}基准 | 随机增量: $((READ_NUM - BASE))分钟"
+          # 自动模式生成随机时长
+          day=$(date +%u)
+          if [[ $day == 7 ]]; then  # 周日
+            READ_NUM=$(( 90 + RANDOM % 151 ))  # 90-240分钟
+          else
+            READ_NUM=$(( 45 + RANDOM % 76 ))   # 45-120分钟
+          fi
         fi
-        
-        # 生成延迟参数
-        DELAY=$(( RANDOM % 21 ))  # 0-20分钟
-        echo "::endgroup::"
-        
-        # 输出参数
-        echo "READ_NUM=$READ&#95;NUM" >> $GITHUB_OUTPUT
-        echo "DELAY=$DELAY" >> $GITHUB_ENV
-        echo "DAY_TYPE=$([[ $DAY -eq 0 ]] && echo 'weekend' || echo 'weekday')" >> $GITHUB_ENV
+
+        # 参数校验
+        if (( READ_NUM < 30 || READ_NUM > 240 )); then
+          echo "::error::无效时长: $READ_NUM" && exit 1
+        fi
+
+        # 生成输出参数
+        echo "READ_NUM=$READ_NUM" >> $GITHUB_OUTPUT
+        echo "DELAY=$(( RANDOM % 16 ))" >> $GITHUB_ENV  # 随机延迟0-15分钟
 
     # ========================
     # 阶段2：延迟执行
     # ========================
-    - name: ⏳ 智能延迟
-      if: ${{ env.DELAY > 0 }}
+    - name: ⏳ 执行延迟
+      if: env.DELAY > 0
       run: |
-        echo "⏱️ 随机延迟 ${{ env.DELAY }} 分钟（规避整点高峰）"
+        echo "⏱️ 添加随机延迟 ${{ env.DELAY }} 分钟"
         sleep $(( ${{ env.DELAY }} * 60 ))
 
     # ========================
-    # 阶段3：执行核心任务
+    # 阶段3：核心任务执行
     # ========================
-    - name: 🚀 执行阅读任务
+    - name: 🤖 执行阅读任务
       env:
-        READ_NUM: ${{ steps.time_engine.outputs.READ_NUM }}
+        READ_NUM: ${{ steps.config.outputs.READ_NUM }}
       run: |
-        echo "::group::📊 任务参数摘要"
-        echo "执行时间: $(date +'%Y-%m-%d %H:%M:%S')"
-        echo "当日类型: ${{ env.DAY_TYPE }}"
-        echo "阅读次数: $READ&#95;NUM (等效$((READ_NUM/2))分钟)"
-        echo "累计时长: $((READ&#95;NUM/2 + ${{ env.DELAY }}))分钟"
-        echo "::endgroup::"
-        
-        # 模拟任务执行（替换为实际调用）
-        for ((i=1; i<=$READ&#95;NUM; i++)); do
-          echo "📖 阅读进度 [$i/$READ&#95;NUM] 当前时间: $(date +'%H:%M:%S')"
-          sleep 30
-        done
+        # 此处应调用你的实际脚本
+        echo "✅ 模拟阅读完成 | 时长: ${READ_NUM}分钟"
+        # python main.py --duration $READ_NUM
 
     # ========================
-    # 阶段4：周报生成
+    # 阶段4：通知系统
     # ========================
-    - name: 📈 周报生成
-      if: ${{ always() }}
+    - name: 📢 推送通知
+      if: always()  # 始终执行
       run: |
-        echo "::warning::周报功能开发中，预计2025Q2上线"
-        # 此处可集成数据库记录每周总时长
+        # 构建消息内容
+        status=${{ job.status }}
+        run_url="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+        msg="任务状态: ${status^^}&#92;n时长: ${{ env.READ_NUM }}分钟&#92;n详情: ${run_url}"
+
+        # 根据推送方式构造参数
+        if [[ "$PUSH_METHOD" == "topic" ]]; then
+          topic_ids=${{ secrets.WXPUSHER_TOPIC_ID }}
+          post_data="&#92;"topicIds&#92;": [${topic_ids}]"
+        elif [[ "$PUSH_METHOD" == "uid" ]]; then
+          uids=${{ secrets.WXPUSHER_UIDS }}
+          post_data="&#92;"uids&#92;": [&#92;"${uids}&#92;"]"
+        else
+          echo "::error::未知推送方式" && exit 1
+        fi
+
+        # 发送WxPusher请求
+        curl -X POST "https://wxpusher.zjiecode.com/api/send/message" &#92;
+          -H "Content-Type: application/json" &#92;
+          -d '{
+            "appToken": "'"$WXPUSHER_SPT"'",
+            "content": "'"$msg"'",
+            "contentType": 3,
+            '${post_data}'
+          }'
