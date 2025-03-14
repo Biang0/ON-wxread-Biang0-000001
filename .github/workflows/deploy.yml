@@ -1,8 +1,8 @@
-name: WeRead Bot with WxPusher
+name: WeRead Stable Bot
 
 on:
   schedule:
-    - cron: '0 21 * * 1-6'    # 北京周二到周六 05:00
+    - cron: '0 21 * * 1-6'    # 北京5:00（周一至周六）
     - cron: '50 3 * * 1-6'    # 北京11:50
     - cron: '0 14 * * 1-6'    # 北京22:00
     - cron: '0 16-23 * * 6'   # 北京周日00:00-07:59
@@ -16,25 +16,30 @@ on:
         type: number
 
 jobs:
-  wxread_task:
+  core_task:
     runs-on: ubuntu-24.04
     env:
       TZ: Asia/Shanghai
-      WXPUSHER_SPT: ${{ secrets.WXPUSHER_SPT }}  # WxPusher appToken
-      PUSH_METHOD: ${{ secrets.PUSH_METHOD }}    # 推送方式（topic/uid）
+      WXPUSHER_SPT: ${{ secrets.WXPUSHER_SPT }}
+      PUSH_METHOD: ${{ secrets.PUSH_METHOD }}
 
     steps:
     # ========================
-    # 阶段1：参数初始化
+    # 阶段1：参数配置
     # ========================
     - name: ⚙️ 参数初始化
       id: config
       run: |
         # 手动模式处理
         if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-          READ_NUM=${{ inputs.duration || 60 }}
+          if [[ -n "${{ inputs.duration }}" ]]; then
+            READ_NUM=${{ inputs.duration }}
+            echo "🛠️ 手动模式 | 时长: $READ_NUM 分钟"
+          else
+            echo "::error::手动触发需指定duration参数" && exit 1
+          fi
         else
-          # 自动模式生成随机时长
+          # 自动模式逻辑
           day=$(date +%u)
           if [[ $day == 7 ]]; then  # 周日
             READ_NUM=$(( 90 + RANDOM % 151 ))  # 90-240分钟
@@ -45,61 +50,62 @@ jobs:
 
         # 参数校验
         if (( READ_NUM < 30 || READ_NUM > 240 )); then
-          echo "::error::无效时长: $READ_NUM" && exit 1
+          echo "::error::时长超出范围(30-240): $READ_NUM" && exit 1
         fi
 
-        # 生成输出参数
         echo "READ_NUM=$READ_NUM" >> $GITHUB_OUTPUT
-        echo "DELAY=$(( RANDOM % 16 ))" >> $GITHUB_ENV  # 随机延迟0-15分钟
 
     # ========================
-    # 阶段2：延迟执行
-    # ========================
-    - name: ⏳ 执行延迟
-      if: env.DELAY > 0
-      run: |
-        echo "⏱️ 添加随机延迟 ${{ env.DELAY }} 分钟"
-        sleep $(( ${{ env.DELAY }} * 60 ))
-
-    # ========================
-    # 阶段3：核心任务执行
+    # 阶段2：核心任务
     # ========================
     - name: 🤖 执行阅读任务
       env:
         READ_NUM: ${{ steps.config.outputs.READ_NUM }}
       run: |
-        # 此处应调用你的实际脚本
-        echo "✅ 模拟阅读完成 | 时长: ${READ_NUM}分钟"
-        # python main.py --duration $READ_NUM
+        echo "✅ 开始执行阅读 | 计划时长: ${READ_NUM}分钟"
+        # 实际任务示例（替换为你的真实逻辑）
+        for ((i=1; i<=READ_NUM; i++)); do
+          echo "[${i}/${READ_NUM}] 正在阅读..."
+          sleep 60  # 模拟每分钟进度
+        done
 
     # ========================
-    # 阶段4：通知系统
+    # 阶段3：通知系统
     # ========================
-    - name: 📢 推送通知
-      if: always()  # 始终执行
+    - name: 📢 微信推送报告
+      if: always()
+      env:
+        TOPIC_ID: ${{ secrets.WXPUSHER_TOPIC_ID }}
+        UID_LIST: ${{ secrets.WXPUSHER_UIDS }}
       run: |
         # 构建消息内容
-        status=${{ job.status }}
+        status="${{ job.status }}"
         run_url="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-        msg="任务状态: ${status^^}&#92;n时长: ${{ env.READ_NUM }}分钟&#92;n详情: ${run_url}"
+        msg="微信读书任务报告：
+        ➤ 状态: ${status^^}
+        ➤ 执行时长: ${{ env.READ_NUM }}分钟
+        ➤ 日志详情: $run_url"
 
-        # 根据推送方式构造参数
-        if [[ "$PUSH_METHOD" == "topic" ]]; then
-          topic_ids=${{ secrets.WXPUSHER_TOPIC_ID }}
-          post_data="&#92;"topicIds&#92;": [${topic_ids}]"
-        elif [[ "$PUSH_METHOD" == "uid" ]]; then
-          uids=${{ secrets.WXPUSHER_UIDS }}
-          post_data="&#92;"uids&#92;": [&#92;"${uids}&#92;"]"
-        else
-          echo "::error::未知推送方式" && exit 1
-        fi
+        # 发送请求
+        case "$PUSH_METHOD" in
+          topic)
+            curl -sS -X POST "https://wxpusher.zjiecode.com/api/send/message" &#92;
+              -H "Content-Type: application/json" &#92;
+              -d '{
+                "appToken": "'"$WXPUSHER_SPT"'",
+                "content": "'"$msg"'",
+                "contentType": 3,
+                "topicIds": ['"$TOPIC_ID"']
+              }' ;;
+          uid)
+            IFS=',' read -ra UIDS <<< "$UID_LIST"
+            for uid in "${UIDS[@]}"; do
+              curl -sS -X POST "https://wxpusher.zjiecode.com/api/send/message" &#92;
+                -d "appToken=$WXPUSHER_SPT&content=$msg&contentType=3&uids=$uid"
+              sleep 0.5
+            done ;;
+          *)
+            echo "::error::未知推送方式: $PUSH_METHOD" && exit 1 ;;
+        esac
 
-        # 发送WxPusher请求
-        curl -X POST "https://wxpusher.zjiecode.com/api/send/message" &#92;
-          -H "Content-Type: application/json" &#92;
-          -d '{
-            "appToken": "'"$WXPUSHER_SPT"'",
-            "content": "'"$msg"'",
-            "contentType": 3,
-            '${post_data}'
-          }'
+        echo "通知发送状态码: $?"
