@@ -1,108 +1,97 @@
-name: WeRead AutoBot Pro
+name: wxread
 
 on:
   schedule:
-    - cron: '0 21 * * 1-6'    # 北京5:00（周一至周六）
-    - cron: '50 3 * * 1-6'    # 北京11:50
-    - cron: '0 14 * * 1-6'    # 北京22:00
-    - cron: '0 16-23 * * 6'   # 北京周日00:00-07:59
-    - cron: '0 0-15 * * 0'    # 北京周日08:00-23:59
-
+    # UTC时间换算（北京时间=UTC+8）
+    - cron: '0 21 * * *'   # 北京5:00（21+8=29→5:00）
+    - cron: '40 3 * * *'   # 北京11:40（3+8=11）
+    - cron: '0 14 * * *'   # 北京22:00（14+8=22）
   workflow_dispatch:
     inputs:
-      duration:
-        description: '运行时长（分钟）30-240'
+      mode:
+        description: '运行模式 (auto/manual)'
         required: false
-        type: number
+        default: 'auto'
 
 jobs:
-  core_task:
-    runs-on: ubuntu-24.04
-    env:
-      TZ: Asia/Shanghai
-      WXPUSHER_SPT: ${{ secrets.WXPUSHER_SPT }}
-      PUSH_METHOD: ${{ secrets.PUSH_METHOD }}
-      WXREAD_CURL_BASH: ${{ secrets.WXREAD_CURL_BASH }}
+  deploy:
+    runs-on: ubuntu-22.04
+    environment: AutoRead
 
     steps:
-    # ========================
-    # 阶段1：环境准备
-    # ========================
-    - name: 🛠 检出代码
+    # ----------------- 初始化阶段 -----------------
+    - name: 🌐 网络配置
+      run: |
+        echo "nameserver 8.8.8.8" | sudo tee /etc/resolv.conf
+        echo "nameserver 8.8.4.4" | sudo tee -a /etc/resolv.conf
+        echo "✅ DNS配置完成 | Google DNS生效"
+
+    - name: 📦 代码仓库检出
       uses: actions/checkout@v4
-
-    - name: 🐍 设置Python环境
-      uses: actions/setup-python@v4
       with:
-        python-version: '3.10'
+        persist-credentials: false
 
-    - name: 📦 安装依赖
+    # ---------------- 环境准备 --------------------
+    - name: 🐍 Python环境初始化
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.10"
+        cache: 'pip'
+
+    - name: 📚 依赖安装
       run: |
-        python -m pip install --upgrade pip
-        pip install requests cryptography
+        pip install -r requirements.txt
+        echo "🔍 验证安装 | $(pip show requests | grep Version)"
 
-    # ========================
-    # 阶段2：动态参数配置
-    # ========================
-    - name: ⚙️ 参数引擎
-      id: config
+    # ---------------- 执行控制 --------------------
+    - name: 🎲 随机延迟
       run: |
-        # 手动模式处理
-        if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-          if [[ -n "${{ inputs.duration }}" ]]; then
-            READ_NUM=$(( ${{ inputs.duration }} * 2 ))  # 转换为阅读次数
-            echo "🛠️ 手动模式 | 次数: $READ_NUM"
-          else
-            echo "::error::手动触发需指定duration参数" && exit 1
-          fi
-        else
-          # 自动模式逻辑
-          day=$(date +%u)
-          if [[ $day == 7 ]]; then  # 周日
-            READ_NUM=$(( 180 + RANDOM % 121 ))  # 180-300次（90-150分钟）
-          else
-            READ_NUM=$(( 90 + RANDOM % 61 ))    # 90-150次（45-75分钟）
-          fi
+        DELAY=$(( RANDOM % 21 ))  # 0-20分钟随机延迟
+        echo "⏳ 延迟设置：${DELAY}分钟"
+        sleep $(( DELAY * 60 ))
+        echo "⏰ 实际延迟：${DELAY}分钟"
+
+    - name: 🕒 阅读时长生成
+      run: |
+        case "${{ github.event.schedule }}" in
+          '0 21 * * *')   # 早间任务
+            # 45-65分钟 → 90-130 READ_NUM
+            NUM=$(( RANDOM % 41 + 90 ))  # 41=130-90+1
+            echo "🌅 早间任务 | 范围：90-130（45-65分钟）" ;;
+          '40 3 * * *')   # 午间任务
+            NUM=$(( RANDOM % 61 + 120 ))  # 120-180（60-90分钟）
+            echo "🌞 午间任务 | 范围：120-180" ;;
+          '0 14 * * *')   # 晚间任务
+            NUM=$(( RANDOM % 61 + 180 ))  # 180-240（90-120分钟）
+            echo "🌙 晚间任务 | 范围：180-240" ;;
+          *)
+            NUM=120  # 安全默认值
+            echo "⚠️ 未知触发类型 | 使用默认值" ;;
+        esac
+
+        # 强制早间范围限制
+        if [[ "${{ github.event.schedule }}" == '0 21 * * *' ]]; then
+          NUM=$(( NUM < 90 ? 90 : NUM ))  # 下限保护
+          NUM=$(( NUM > 130 ? 130 : NUM ))  # 上限保护
         fi
+        
+        echo "📊 生成数值：READ_NUM=${NUM}（等效 $((NUM/2)) 分钟）"
+        echo "READ_NUM=$NUM" >> $GITHUB_ENV
 
-        # 参数校验
-        if (( READ_NUM < 60 || READ_NUM > 300 )); then
-          echo "::error::参数越界(60-300): $READ_NUM" && exit 1
-        fi
-
-        echo "READ_NUM=$READ_NUM" >> $GITHUB_ENV
-        echo "::notice::生成阅读次数: $READ_NUM"
-
-    # ========================
-    # 阶段3：核心执行逻辑
-    # ========================
-    - name: 🤖 执行阅读任务
+    - name: 🚀 执行阅读脚本
       env:
-        READ_NUM: ${{ env.READ_NUM }}
-        WXPUSHER_TOPIC_ID: ${{ secrets.WXPUSHER_TOPIC_ID }}
-        WXPUSHER_UIDS: ${{ secrets.WXPUSHER_UIDS }}
+        WXREAD_CURL_BASH: ${{ secrets.WXREAD_CURL_BASH }}
       run: |
-        echo "✅ 启动自动化脚本 | 计划次数: $READ_NUM"
-        python -u main.py
+        python main.py
+        echo "🔚 脚本退出码：$?"
 
-    # ========================
-    # 阶段4：智能通知系统
-    # ========================
-    - name: 📢 异常监控
-      if: failure()
-      uses: actions/github-script@v6
-      with:
-        script: |
-          const status = process.env.STATUS || 'UNKNOWN'
-          const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
-          const message = `❌ 任务异常终止&#92;n▸ 状态: ${status}&#92;n▸ 日志: ${runUrl}`
-          
-          // 企业微信机器人备用通知
-          await fetch('https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=YOUR_KEY', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              msgtype: "text",
-              text: { content: message }
-            })
-          })
+    # ---------------- 结果验证 --------------------
+    - name: 📝 早间任务验证
+      if: contains(github.event.schedule, '0 21 * * *')
+      run: |
+        if [ $READ_NUM -lt 90 ] || [ $READ_NUM -gt 130 ]; then
+          echo "❌ 数值异常 | 实际值：$READ_NUM"
+          exit 1
+        else
+          echo "✅ 合规检查通过 | 有效范围：90-130"
+        fi
