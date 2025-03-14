@@ -63,10 +63,10 @@ jobs:
         # 调试信息
         echo "=== 触发事件分析 ==="
         echo "事件类型: ${{ github.event_name }}"
-        echo "输入模式: ${{ github.event.inputs.mode }}"
-        echo "定时规则: ${{ github.event.schedule }}"
+        echo "输入模式: ${{ github.event.inputs.mode }}"    
+        echo "定时规则: ${{ github.event.schedule }}"    
 
-        if [[ "${{ github.event.inputs.mode }}" == "manual" ]]; then
+        if [[ "${{ github.event.inputs.mode }}" == "manual" ]]; then  
           # 手动模式
           NUM=$((RANDOM % 91 + 90))
           echo "🕹️ 手动模式 | 范围: 90-180 (45-90分钟)"
@@ -88,7 +88,7 @@ jobs:
               NUM=$((RANDOM % 61 + 120))  # 60-90分钟
               echo "🎉 周末任务 | 范围: 120-180" ;;
             '0 0 * * 1')
-              NUM=$((RANDOM % 121 + 120)) # 60-120分钟  
+              NUM=$((RANDOM % 121 + 120)) # 60-120分钟
               echo "🎰 周随机任务 | 范围: 120-240" ;;
             *)
               # 安全模式：生成默认值
