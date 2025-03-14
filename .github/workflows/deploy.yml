@@ -50,7 +50,7 @@ jobs:
     - name: 🎲 周随机检查
       if: github.event_name == 'schedule' && github.event.schedule == '0 0 * * 1'
       run: |
-        CHECK=$((RANDOM % 7))
+        CHECK=$((RANDOM % 7))  
         echo "随机数：$CHECK (需要等于0)"
         if [ $CHECK -ne 0 ]; then
           echo "⏭️ 跳过周随机任务"
@@ -88,7 +88,7 @@ jobs:
               NUM=$((RANDOM % 61 + 120))  # 60-90分钟
               echo "🎉 周末任务 | 范围: 120-180" ;;
             '0 0 * * 1')
-              NUM=$((RANDOM % 121 + 120)) # 60-120分钟
+              NUM=$((RANDOM % 121 + 120)) # 60-120分钟  
               echo "🎰 周随机任务 | 范围: 120-240" ;;
             *)
               # 安全模式：生成默认值
