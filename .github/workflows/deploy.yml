@@ -2,139 +2,78 @@ name: WeRead Automation
 
 on:
   schedule:
-    # ==============================================
-    # 日常任务（周一到周六 北京时间）
-    # ==============================================
-    - cron: '0 21 * * 1-6'    # UTC 21:00 → 北京5:00（次日）
-    - cron: '40 3 * * 1-6'    # UTC 3:40 → 北京11:40
-    - cron: '0 14 * * 1-6'    # UTC 14:00 → 北京22:00
-
-    # ==============================================
-    # 周日任务入口（UTC周六16点 → 北京周日0点）
-    # ==============================================
-    - cron: '0 16 * * 6'
+    - cron: '0 21 * * 1-6'  # 北京时间5:00
+    - cron: '40 3 * * 1-6'  # 北京时间11:40
+    - cron: '0 14 * * 1-6'  # 北京时间22:00
+    - cron: '0 16 * * 6'    # 北京时间周日0:00
 
   workflow_dispatch:
     inputs:
-      mode:
-        description: '运行模式 [auto:智能模式 / manual:手动调试]'
+      duration:
+        description: '阅读时长（分钟）'
         required: false
-        default: 'auto'
+        default: '30'
 
 jobs:
-  daily_task:
-    name: 日常阅读任务（周一到六）
+  automate_reading:
     runs-on: ubuntu-22.04
-    environment: AutoRead
+    timeout-minutes: 180
+    environment: Production
 
     steps:
-    # ------------------------------
-    # 初始化环境
-    # ------------------------------
-    - name: 🔧 检出代码库
+    - name: 🔧 检出代码
       uses: actions/checkout@v4
 
-    - name: 🐍 设置Python环境
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.10'
-
-    - name: 🌐 安装浏览器依赖
+    - name: 🛠️ 安装系统依赖
       run: |
         sudo apt-get update
-        sudo apt-get install -y chromium-browser chromium-chromedriver
+        sudo apt-get install -y &#92;
+          chromium-browser &#92;
+          chromium-chromedriver &#92;
+          xvfb &#92;
+          libgbm-dev
 
-    - name: 📦 安装Python包
-      run: pip install selenium webdriver-manager
-
-    # ------------------------------
-    # 时段识别模块
-    # ------------------------------
-    - name: 🕒 识别触发时段
-      id: time_period
-      run: |
-        case "${{ github.event.schedule }}" in
-          *'0 21 * * '*)
-            echo "PERIOD=morning" >> $GITHUB_ENV
-            echo "🕖 时段：早间（北京5:00）" ;;
-          *'40 3 * * '*)
-            echo "PERIOD=noon" >> $GITHUB_ENV
-            echo "🕦 时段：午间（北京11:40）" ;;
-          *'0 14 * * '*)
-            echo "PERIOD=night" >> $GITHUB_ENV
-            echo "🕙 时段：晚间（北京22:00）" ;;
-        esac
-
-    # ------------------------------
-    # 阅读参数生成器（分钟制）
-    # ------------------------------
-    - name: 🎯 生成阅读参数
-      run: |
-        case $PERIOD in
-          morning)
-            # 早间：45-75分钟
-            DURATION=$((45 + RANDOM % 31)) ;;
-          noon)
-            # 午间：60-90分钟
-            DURATION=$((60 + RANDOM % 31)) ;;
-          night)
-            # 晚间：动态补充剩余时长（总配额228分钟）
-            REMAINING=$((228 - (75 + 90)))
-            DURATION=$(( REMAINING > 30 ? REMAINING : 90 )) ;;
-        esac
-
-        echo "READ_DURATION=$DURATION" >> $GITHUB_ENV
-        echo "📈 生成参数：$DURATION 分钟"
-
-    # ------------------------------
-    # 浏览器自动化模块
-    # ------------------------------
-    - name: 🚀 执行阅读行为
-      env:
-        WEREAD_COOKIE: ${{ secrets.WEREAD_COOKIE }}
-        READ_DURATION: ${{ env.READ_DURATION }}
-      run: |
-        # 防御性检查
-        if [ -z "$WEREAD_COOKIE" ]; then
-          echo "❌ 错误：未检测到微信读书Cookie"
-          exit 1
-        fi
-
-        # 启动虚拟显示并运行自动化脚本
-        export DISPLAY=:0
-        xvfb-run --auto-servernum python wechat_read_local.py
-
-    # ------------------------------
-    # 日志收集（仅失败时）
-    # ------------------------------
-    - name: 📤 上传调试信息
-      if: ${{ failure() }}
-      uses: actions/upload-artifact@v3
-      with:
-        name: error-info
-        path: |
-          *.log
-          /tmp/chrome-session/
-
-  sunday_task:
-    name: 周日全随机任务
-    runs-on: ubuntu-22.04
-    environment: AutoRead
-    needs: daily_task
-
-    steps:
-    - name: 🌐 配置浏览器环境
+    - name: 🐍 配置Python环境
       uses: actions/setup-python@v4
       with:
         python-version: '3.10'
 
-    - name: 🎲 随机时长阅读
+    - name: 📦 安装Python包
+      run: |
+        pip install selenium==4.15.2 webdriver-manager==4.0.1
+
+    - name: 🍪 配置Cookie
       env:
         WEREAD_COOKIE: ${{ secrets.WEREAD_COOKIE }}
       run: |
-        # 生成120-180分钟随机时长
-        RANDOM_DURATION=$((120 + RANDOM % 61))
-        echo "🎲 周日随机时长：$RANDOM_DURATION 分钟"
-        
-        export DISPLAY=:0
-        xvfb-run --auto-servernum python wechat_read_local.py $RANDOM_DURATION
+        mkdir -p /tmp/chrome_profile
+        echo '$WEREAD_COOKIE' > /tmp/cookies.json
+        jq empty /tmp/cookies.json  # 验证JSON格式
+
+    - name: ⏲️ 设置阅读时长
+      run: |
+        case "${{ github.event.schedule }}" in
+          *'0 21'*) DURATION=$((40 + RANDOM % 20)) ;;  # 早间40-60分钟
+          *'40 3'*) DURATION=$((60 + RANDOM % 30)) ;;  # 午间60-90分钟
+          *'0 14'*) DURATION=$((50 + RANDOM % 25)) ;;  # 晚间50-75分钟
+          *) DURATION=${{ inputs.duration || 120 }} ;; # 默认120分钟
+        esac
+        echo "READ_DURATION=$DURATION" >> $GITHUB_ENV
+
+    - name: 📖 执行阅读任务
+      env:
+        DISPLAY: ':0'
+        READ_DURATION: ${{ env.READ_DURATION }}
+      run: |
+        xvfb-run --auto-servernum &#92;
+          python wechat_auto_read.py
+
+    - name: 📤 上传调试信息
+      if: ${{ failure() }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: debug-info-${{ github.run_id }}
+        path: |
+          automation.log
+          /tmp/*.png
+        retention-days: 2
