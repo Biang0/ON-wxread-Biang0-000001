@@ -29,7 +29,7 @@ jobs:
     - name: 📥 检出仓库
       uses: actions/checkout@v4
 
-    - name: 🐍 设置Python 3.10
+    - name: 🐍 设置Python 3.10  
       uses: actions/setup-python@v5
       with:
         python-version: '3.10'
@@ -42,7 +42,7 @@ jobs:
 
     - name: ⏱️ 随机延迟
       run: |
-        DELAY=$((RANDOM % 1))  
+        DELAY=$((RANDOM % 21))    
         echo "生成的随机延迟：${DELAY}分钟"
         sleep $((DELAY * 60))
         echo "延迟执行完成"
@@ -52,7 +52,7 @@ jobs:
       run: |
         CHECK=$((RANDOM % 7))
         echo "随机数：$CHECK (需要等于0)"
-        if [ $CHECK -ne 0 ]; then  
+        if [ $CHECK -ne 0 ]; then    
           echo "⏭️ 跳过周随机任务"
           exit 0
         fi
@@ -76,7 +76,7 @@ jobs:
 
           case "$SCHEDULE" in
             '0 21 * * *')
-              NUM=$((RANDOM % 61 + 90))   # 45-75分钟
+              NUM=$((RANDOM % 61 + 90))   # 45-75分钟  
               echo "🌅 早间任务 | 范围: 90-150" ;;
             '40 3 * * *')
               NUM=$((RANDOM % 61 + 120))  # 60-90分钟
