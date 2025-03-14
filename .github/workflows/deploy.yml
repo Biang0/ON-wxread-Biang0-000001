@@ -1,9 +1,9 @@
-name: wxread
+name: wxread  
 
 on:
   schedule:
-    - cron: '00 14 * * *'         # 北京22:00
-    - cron: '0 21 * * *'          # 北京5:00  
+    - cron: '00 14 * * *'         # 北京22:00  
+    - cron: '0 21 * * *'          # 北京5:00    
     - cron: '40 3 * * *'          # 北京11:40
     - cron: '0 9 * * sat,sun'     # 周末17:00
     - cron: '0 0 * * 1'           # 周一8:00
@@ -42,7 +42,7 @@ jobs:
 
     - name: ⏱️ 随机延迟
       run: |
-        DELAY=$((RANDOM % 21))    
+        DELAY=$((RANDOM % 21))      
         echo "生成的随机延迟：${DELAY}分钟"
         sleep $((DELAY * 60))
         echo "延迟执行完成"
@@ -68,7 +68,7 @@ jobs:
 
         if [[ "${{ github.event.inputs.mode }}" == "manual" ]]; then
           # 手动模式
-          NUM=$((RANDOM % 91 + 90))
+          NUM=$((RANDOM % 91 + 90))  
           echo "🕹️ 手动模式 | 范围: 90-180 (45-90分钟)"
         else
           # 获取触发规则
@@ -88,13 +88,13 @@ jobs:
               NUM=$((RANDOM % 61 + 120))  # 60-90分钟
               echo "🎉 周末任务 | 范围: 120-180" ;;
             '0 0 * * 1')
-              NUM=$((RANDOM % 121 + 120)) # 60-120分钟
+              NUM=$((RANDOM % 121 + 120)) # 60-120分钟  
               echo "🎰 周随机任务 | 范围: 120-240" ;;
             *)
               # 安全模式：生成默认值
-              NUM=$((RANDOM % 61 + 120))  
+              NUM=$((RANDOM % 61 + 120))    
               echo "⚠️ 未知触发类型 | 启用安全默认值: 120-180" ;;
-          esac
+          esac  
         fi
 
         # 输出结果
@@ -107,4 +107,4 @@ jobs:
       run: |
         echo "=== 执行参数 ==="
         echo "READ_NUM: ${{ env.READ_NUM }}"
-        python main.py
+        python main.py  
