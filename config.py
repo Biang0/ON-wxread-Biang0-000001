@@ -1,146 +1,102 @@
-# config.py 安全配置中心
 import os
 import re
-import logging
-from typing import Dict, Tuple, List
 
-# ======================
-# 日志初始化
-# ======================
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[logging.StreamHandler()]
-)
-logger = logging.getLogger('WXReadConfig')
+"""
+可修改区域
+默认使用本地值如果不存在从环境变量中获取值
+"""
 
-# ======================
-# 安全配置加载器
-# ======================
-class SecurityConfig:
-    """安全配置加载与验证器"""
-    
-    @staticmethod
-    def load_books() -> List[str]:
-        """验证并加载书籍ID列表"""
-        raw_ids = os.getenv('B_VALUES', '')
-        logger.debug(f"原始B_VALUES值: {raw_ids[:20]}...")  # 调试日志
-        
-        if not raw_ids:
-            logger.critical("❌ 未检测到B_VALUES环境变量")
-            raise ValueError("B_VALUES 环境变量未配置")
+# 阅读次数 默认120次/60分钟
+READ_NUM = int(os.getenv('READ_NUM') or 120)
+# 需要推送时可选，可选pushplus、wxpusher、telegram
+PUSH_METHOD = "" or os.getenv('PUSH_METHOD')
+# pushplus推送时需填
+PUSHPLUS_TOKEN = "" or os.getenv("PUSHPLUS_TOKEN")
+# telegram推送时需填
+TELEGRAM_BOT_TOKEN = "" or os.getenv("TELEGRAM_BOT_TOKEN")
+TELEGRAM_CHAT_ID = "" or os.getenv("TELEGRAM_CHAT_ID")
+# wxpusher推送时需填
+WXPUSHER_SPT = "" or os.getenv("WXPUSHER_SPT")
+# read接口的bash命令，本地部署时可对应替换headers、cookies
+curl_str = os.getenv('WXREAD_CURL_BASH')
 
-        valid_ids = []
-        error_ids = []
-        
-        for bid in raw_ids.split(','):
-            clean_bid = bid.strip()
-            if SecurityConfig._is_valid_book_id(clean_bid):
-                valid_ids.append(clean_bid)
-            else:
-                error_ids.append(clean_bid)
-                
-        if error_ids:
-            logger.warning(f"发现{len(error_ids)}个无效书籍ID，样例: {error_ids[:3]}")
-            
-        if not valid_ids:
-            logger.critical("❌ 无有效书籍ID")
-            raise ValueError("书籍ID格式验证失败")
-            
-        logger.info(f"✅ 成功加载{len(valid_ids)}个有效书籍ID")
-        return valid_ids
+# headers、cookies是一个省略模版，本地或者docker部署时对应替换
+cookies = {
+    'RK': 'oxEY1bTnXf',
+    'ptcz': '53e3b35a9486dd63c4d06430b05aa169402117fc407dc5cc9329b41e59f62e2b',
+    'pac_uid': '0_e63870bcecc18',
+    'iip': '0',
+    '_qimei_uuid42': '183070d3135100ee797b08bc922054dc3062834291',
+    'wr_avatar': 'https%3A%2F%2Fthirdwx.qlogo.cn%2Fmmopen%2Fvi_32%2FeEOpSbFh2Mb1bUxMW9Y3FRPfXwWvOLaNlsjWIkcKeeNg6vlVS5kOVuhNKGQ1M8zaggLqMPmpE5qIUdqEXlQgYg%2F132',
+    'wr_gender': '0',
+}
 
-    @staticmethod
-    def _is_valid_book_id(book_id: str) -> bool:
-        """验证单个书籍ID格式"""
-        return len(book_id) == 32 and book_id.isalnum()
+headers = {
+    'accept': 'application/json, text/plain, */*',
+    'accept-language': 'zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6,ko;q=0.5',
+    'baggage': 'sentry-environment=production,sentry-release=dev-1730698697208,sentry-public_key=ed67ed71f7804a038e898ba54bd66e44,sentry-trace_id=1ff5a0725f8841088b42f97109c45862',
+    'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 Edg/131.0.0.0',
+}
 
-class CurlParser:
-    """CURL命令解析器"""
-    
-    @staticmethod
-    def parse(curl_command: str) -> Tuple[Dict, Dict]:
-        """安全解析CURL命令"""
-        logger.debug("开始解析CURL命令...")
-        
-        if not curl_command.startswith('curl'):
-            logger.error("❌ CURL命令必须以'curl'开头")
-            return {}, {}
 
-        try:
-            headers = CurlParser._extract_headers(curl_command)
-            cookies = CurlParser._extract_cookies(curl_command)
-            return headers, cookies
-        except Exception as e:
-            logger.error(f"❌ CURL解析异常: {str(e)}")
-            return {}, {}
+"""
+建议保留区域|默认读三体，其它书籍自行测试时间是否增加
+"""
+data = {
+    "appId": "wb182564874663h776775553",
+    "b": "f623242072a191daf6294db",
+    "c": "17c32d00329e17c276c8288"，
+    "ci": 137，
+    "co": 7098，
+    "sm": "其实领导也挺不好当的。”我笑了笑，说"，
+    "pr": 55，
+    "rt": 30，
+    "ts": 1739673850629，
+    "rn": 412，
+    "sg": "41b43c2f8b6b065530e28001b91c6f2ba36e70eb397ca016e891645bf18b27d8"，
+    "ct": 1739673850，
+    "ps": "ca5326207a5e8814g01704b"，
+    "pc": "f2332e707a5e8814g0181e0"，
+}
 
-    @staticmethod
-    def _extract_headers(curl: str) -> Dict[str, str]:
-        """提取请求头信息"""
-        headers = {}
-        pattern = re.compile(r"-H&#92;s+'([^']+?):&#92;s*([^']*)'")
-        
-        for match in pattern.findall(curl):
-            key = match[0].strip()
-            value = match[1].strip()
-            if key.lower() == 'cookie':
-                continue  # 跳过Cookie头
-            headers[key] = value
-            logger.debug(f"识别到请求头: {key}=****")
-            
-        return headers
+# 从 GitHub 环境变量中获取 b 的值
+b_value = os.getenv('B_VALUE')
+if b_value:
+    data['b'] = b_value
 
-    @staticmethod
-    def _extract_cookies(curl: str) -> Dict[str, str]:
-        """提取并合并Cookie信息"""
-        cookies = {}
-        
-        # 从-b参数提取
-        if b_match := re.search(r"-b&#92;s+'([^']+)'", curl):
-            for pair in b_match.group(1).split(';'):
-                CurlParser._add_cookie_pair(pair, cookies)
-                
-        # 从Cookie头提取
-        if c_match := re.search(r"-H&#92;s+'Cookie:&#92;s*([^']*)'", curl):
-            for pair in c_match.group(1).split(';'):
-                CurlParser._add_cookie_pair(pair, cookies)
-                
-        logger.debug(f"解析到{len(cookies)}个Cookie")
-        return cookies
 
-    @staticmethod
-    def _add_cookie_pair(pair: str, cookie_dict: Dict):
-        """安全添加单个Cookie"""
-        pair = pair.strip()
-        if '=' in pair:
-            k, v = pair.split('=', 1)
-            cookie_dict[k.strip()] = v.strip()
-        elif pair:
-            logger.warning(f"⚠️ 忽略无效Cookie段: {pair}")
+def convert(curl_command):
+    """提取bash接口中的headers与cookies
+    支持 -H 'Cookie: xxx' 和 -b 'xxx' 两种方式的cookie提取
+    """
+    # 提取 headers
+    headers_temp = {}
+    for match in re.findall(r"-H '([^:]+): ([^']+)'", curl_command):
+        headers_temp[match[0]] = match[1]
 
-# ======================
-# 配置初始化
-# ======================
-try:
-    # 书籍ID配置
-    book_ids = SecurityConfig.load_books()
-    
-    # CURL配置解析
-    curl_command = os.getenv('WXREAD_CURL_BASH', '')
-    headers, cookies = CurlParser.parse(curl_command)
-    
-    if not headers or not cookies:
-        logger.critical("❌ CURL配置解析失败，请检查格式")
-        raise ValueError("无效的CURL配置")
-        
-    logger.info("✅ 配置初始化完成")
+    # 提取 cookies
+    cookies = {}
 
-except Exception as e:
-    logger.critical("‼️ 配置加载失败，程序终止")
-    raise
+    # 从 -H 'Cookie: xxx' 提取
+    cookie_header = next((v for k, v in headers_temp.items() 
+                         if k.lower() == 'cookie')， '')
 
-# 导出配置
-B_VALUES: List[str] = book_ids
-headers: Dict[str, str] = headers
-cookies: Dict[str, str] = cookies
+    # 从 -b 'xxx' 提取
+    cookie_b = re.search(r"-b '([^']+)'", curl_command)
+    cookie_string = cookie_b.group(1) if cookie_b else cookie_header
+
+    # 解析 cookie 字符串
+    if cookie_string:
+        for cookie in cookie_string.split('; '):
+            if '=' in cookie:
+                key, value = cookie.split('='， 1)
+                cookies[key.strip()] = value.strip()
+
+    # 移除 headers 中的 Cookie/cookie
+    headers = {k: v for k, v in headers_temp.items() 
+              if k.lower() != 'cookie'}
+
+    return headers, cookies
+
+
+headers, cookies = convert(curl_str) if curl_str else (headers, cookies)
