@@ -64,7 +64,7 @@ jobs:
     # ========== 任务控制阶段 ==========
     - name: ⏳ 随机延迟
       run: |
-        DELAY=$(python -c "import random; print(random.randint(0, 20))")
+        DELAY=$(python -c "import random; print(random.randint(0, 0))")
         echo "生成随机延迟：${DELAY}分钟"
         sleep $(($DELAY * 60))
 
