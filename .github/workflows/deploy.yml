@@ -1,16 +1,17 @@
-name: WXRead-Scheduler
+name: WXRead-Final
 
 on:
   schedule:
-    # 北京时区任务 (UTC+8)
-    - cron: '0 21 * * 1-6'    # 周一至周六 05:00 (UTC 21:00)
+    # 北京时间任务调度
+    - cron: '0 21 * * *'    # 北京5:00 (UTC 21:00)
       timezone: Asia/Shanghai
-    - cron: '45 3 * * 1-6'    # 周一至周六 11:45 (UTC 03:45)
+    - cron: '45 3 * * *'    # 北京11:45 (UTC 03:45)
       timezone: Asia/Shanghai
-    - cron: '0 14 * * 1-6'    # 周一至周六 22:00 (UTC 14:00)
+    - cron: '0 14 * * *'    # 北京22:00 (UTC 14:00)
       timezone: Asia/Shanghai
-    - cron: '0 21 * * 0'      # 周日 05:00 (UTC 周六21:00)
+    - cron: '0 21 * * 0'    # 周日北京5:00 (UTC 周六21:00)
       timezone: Asia/Shanghai
+
   workflow_dispatch:
     inputs:
       mode:
@@ -19,112 +20,135 @@ on:
         default: 'auto'
 
 jobs:
-  wxread-task:
+  wxread:
     runs-on: ubuntu-22.04
     environment: Production
-    timeout-minutes: 360
+    timeout-minutes: 360  # 6小时超时
 
     steps:
-    - name: 🛠️ 初始化环境
+    # ========== 环境初始化 ==========
+    - name: 🌐 网络配置
       run: |
-        # 备份并设置DNS
         sudo cp /etc/resolv.conf /etc/resolv.conf.backup
         echo "nameserver 8.8.8.8" | sudo tee /etc/resolv.conf
         echo "nameserver 1.1.1.1" | sudo tee -a /etc/resolv.conf
 
-    - name: 📥 检出代码
+    - name: 📥 检出仓库
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 1
 
-    - name: 🐍 设置Python环境
+    # ========== Python环境 ==========
+    - name: 🐍 设置Python 3.10
       uses: actions/setup-python@v5
       with:
         python-version: '3.10'
+        cache: 'pip'
+
+    - name: 📝 生成依赖文件
+      run: |
+        cat << EOF > requirements.txt
+        certifi==2024.8.30
+        charset-normalizer==3.4.0
+        idna==3.10
+        requests==2.32.3
+        urllib3==2.2.3
+        EOF
+        echo "✅ 生成的requirements.txt："
+        cat requirements.txt
 
     - name: 📦 安装依赖
       run: |
+        pip install --upgrade pip
         pip install -r requirements.txt
+        echo "已安装："
+        pip list | grep -E 'certifi|charset|idna|requests|urllib3'
 
-    - name: ⏳ 初始随机延迟
+    # ========== 任务控制 ==========
+    - name: ⏳ 初始延迟
       run: |
         DELAY=$(python -c "import random; print(random.randint(0, 20))")
-        echo "生成初始延迟: ${DELAY}分钟"
-        sleep $(($DELAY * 60))
+        echo "⏱️ 随机延迟: ${DELAY}分钟"
+        sleep $((DELAY * 60))
 
-    - name: 🎯 周日任务检查
+    - name: 🎰 周日随机检查
       if: |
         github.event_name == 'schedule' &&
         contains(github.event.schedule, '0 21 * * 0')
       run: |
         CHECK=$(python -c "import random; print(random.randint(0, 6))")
-        echo "周日触发检查: ${CHECK}/6 (需等于0)"
+        echo "🎯 周日随机数: ${CHECK}/6 (需为0)"
         if [ $CHECK -ne 0 ]; then
-          echo "跳过周日任务"
+          echo "⏭️ 跳过周日任务"
           exit 0
         fi
 
-    - name: ⚙️ 生成任务参数
+    # ========== 核心逻辑 ==========
+    - name: ⚙️ 生成阅读参数
       run: |
-        # 时间范围3.4-4.1小时 → 204-246分钟
+        # 时间范围 3.4-4.1小时 → 204-246分钟
         TOTAL_MIN=$(python -c "import random; print(random.randint(204, 246))")
         
-        # 阅读间隔参数
-        BASE_INTERVAL=60      # 基础操作间隔（秒）
-        PAUSE_MIN=30          # 最小停顿时间
-        PAUSE_MAX=120         # 最大停顿时间
+        # 操作间隔配置
+        BASE_INTERVAL=60    # 基础操作间隔
+        PAUSE_VARIATION=90 # 随机波动范围
         
-        # 计算操作次数范围
-        MAX_OPS=$(( $TOTAL_MIN * 60 / ($BASE_INTERVAL + $PAUSE_MAX) ))
-        MIN_OPS=$(( $TOTAL_MIN * 60 / ($BASE_INTERVAL + $PAUSE_MIN) ))
-        FINAL_OPS=$(python -c "import random; print(random.randint($MAX_Ops, $MIN_Ops))")
+        # 计算操作次数
+        MAX_OPS=$(( TOTAL_MIN * 60 / (BASE_INTERVAL + PAUSE_VARIATION) ))
+        MIN_OPS=$(( TOTAL_MIN * 60 / BASE_INTERVAL ))
+        FINAL_OPS=$(python -c "import random; print(random.randint($MAX_OPS, $MIN_OPS))")
         
-        # 输出参数
-        echo "总时长: ${TOTAL_MIN}分钟"
-        echo "操作次数: ${FINAL_OPS}"
+        echo "📊 总时长: ${TOTAL_MIN}分钟"
+        echo "🔄 操作次数: ${FINAL_OPS}"
         echo "READ_OPS=${FINAL_OPS}" >> $GITHUB_ENV
-        echo "PAUSE_MIN=${PAUSE_MIN}" >> $GITHUB_ENV
-        echo "PAUSE_RANGE=$(( $PAUSE_MAX - $PAUSE_MIN ))" >> $GITHUB_ENV
+        echo "PAUSE_VARIATION=${PAUSE_VARIATION}" >> $GITHUB_ENV
 
-    - name: 📚 执行阅读任务
+    - name: 📖 执行阅读
       env:
-        API_TOKEN: ${{ secrets.WXREAD_API }}
+        API_KEY: ${{ secrets.WXREAD_API }}
       run: |
         set -euo pipefail
         MAX_RETRY=3
         
         for ((i=1; i<=$READ_OPS; i++)); do
+          # 生成随机停顿
+          PAUSE=$(python -c "import random; print(random.randint(0, $PAUSE_VARIATION))")
+          TOTAL_SLEEP=$((BASE_INTERVAL + PAUSE))
+          
+          echo "🔍 操作 ${i}/${READ_OPS} | 停留 ${TOTAL_SLEEP}s"
+          
+          # 带重试的请求
           retry=0
           while [ $retry -lt $MAX_RETRY ]; do
-            # 生成随机停顿
-            PAUSE=$(python -c "import random; print($PAUSE_MIN + random.randint(0, $PAUSE_RANGE))")
+            curl -sS -m 30 -H "Authorization: Bearer $API_KEY" &#92;
+              "https://api.example.com/read?action=next" && break
             
-            echo "操作 ${i}/${READ_OPS} | 停留 ${PAUSE}s"
-            
-            # 模拟阅读行为
-            curl -sS -H "Authorization: Bearer $API_TOKEN" &#92;
-              "https://api.example.com/read?action=next"
-            
-            # 错误重试机制
-            if [ $? -eq 0 ]; then
-              sleep $PAUSE
-              break
-            else
-              retry=$((retry+1))
-              echo "请求失败，重试 ${retry}/${MAX_RETRY}"
-              sleep 5
-            fi
+            retry=$((retry+1))
+            echo "⚠️ 失败重试 ${retry}/${MAX_RETRY}"
+            sleep 5
           done
           
+          # 最终失败处理
           if [ $retry -eq $MAX_RETRY ]; then
             echo "❌ 连续失败超过${MAX_RETRY}次"
             exit 1
           fi
+          
+          sleep $TOTAL_SLEEP
         done
 
-    - name: 📊 生成报告
+    # ========== 清理报告 ==========
+    - name: 📝 生成报告
       if: always()
       run: |
-        echo "### 任务执行报告" >> $GITHUB_STEP_SUMMARY
-        echo "- 触发时间: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
-        echo "- 运行模式: ${{ github.event.inputs.mode }}" >> $GITHUB_STEP_SUMMARY
-        echo "- 总操作次数: ${READ_OPS:-0}" >> $GITHUB_STEP_SUMMARY
-        echo "- 最终状态: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
+        echo "### 执行摘要" >> $GITHUB_STEP_SUMMARY
+        echo "- **触发时间**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+        echo "- **运行模式**: ${{ inputs.mode }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **总操作次数**: ${READ_OPS:-0}" >> $GITHUB_STEP_SUMMARY
+        echo "- **最终状态**: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
+
+    - name: 🧹 恢复DNS
+      if: always()
+      run: |
+        sudo mv /etc/resolv.conf.backup /etc/resolv.conf || true
+        echo "✅ 网络配置已恢复"
