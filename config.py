@@ -1,7 +1,6 @@
 # config.py 安全配置中心
 import os
 import re
-import random
 import logging
 from typing import Dict, Tuple, List
 
@@ -19,88 +18,129 @@ logger = logging.getLogger('WXReadConfig')
 # 安全配置加载器
 # ======================
 class SecurityConfig:
+    """安全配置加载与验证器"""
+    
     @staticmethod
     def load_books() -> List[str]:
         """验证并加载书籍ID列表"""
         raw_ids = os.getenv('B_VALUES', '')
+        logger.debug(f"原始B_VALUES值: {raw_ids[:20]}...")  # 调试日志
+        
         if not raw_ids:
+            logger.critical("❌ 未检测到B_VALUES环境变量")
             raise ValueError("B_VALUES 环境变量未配置")
-            
+
         valid_ids = []
+        error_ids = []
+        
         for bid in raw_ids.split(','):
             clean_bid = bid.strip()
-            if len(clean_bid) == 32 and clean_bid.isalnum():
+            if SecurityConfig._is_valid_book_id(clean_bid):
                 valid_ids.append(clean_bid)
             else:
-                logger.warning(f"忽略无效书籍ID: {bid}")
-        
+                error_ids.append(clean_bid)
+                
+        if error_ids:
+            logger.warning(f"发现{len(error_ids)}个无效书籍ID，样例: {error_ids[:3]}")
+            
         if not valid_ids:
-            raise ValueError("无有效书籍ID，请检查B_VALUES格式")
+            logger.critical("❌ 无有效书籍ID")
+            raise ValueError("书籍ID格式验证失败")
+            
+        logger.info(f"✅ 成功加载{len(valid_ids)}个有效书籍ID")
         return valid_ids
 
     @staticmethod
-    def parse_curl(curl: str) -> Tuple[Dict, Dict]:
+    def _is_valid_book_id(book_id: str) -> bool:
+        """验证单个书籍ID格式"""
+        return len(book_id) == 32 and book_id.isalnum()
+
+class CurlParser:
+    """CURL命令解析器"""
+    
+    @staticmethod
+    def parse(curl_command: str) -> Tuple[Dict, Dict]:
         """安全解析CURL命令"""
-        def extract(pattern, text):
-            return re.findall(pattern, text, re.DOTALL)
-
-        # 清理命令格式
-        curl = re.sub(r'&#92;s+', ' ', curl.replace('&#92;&#92;', '')).strip()
+        logger.debug("开始解析CURL命令...")
         
-        # 提取headers
+        if not curl_command.startswith('curl'):
+            logger.error("❌ CURL命令必须以'curl'开头")
+            return {}, {}
+
+        try:
+            headers = CurlParser._extract_headers(curl_command)
+            cookies = CurlParser._extract_cookies(curl_command)
+            return headers, cookies
+        except Exception as e:
+            logger.error(f"❌ CURL解析异常: {str(e)}")
+            return {}, {}
+
+    @staticmethod
+    def _extract_headers(curl: str) -> Dict[str, str]:
+        """提取请求头信息"""
         headers = {}
-        for h in extract(r"-H&#92;s+'([^']+?)'", curl):
-            if ':' in h:
-                k, v = h.split(':', 1)
-                headers[k.strip()] = v.strip()
-
-        # 合并cookies来源
-        cookies = {}
-        cookie_sources = [
-            headers.pop('Cookie', ''),
-            next(iter(extract(r"-b&#92;s+'([^']+?)'", curl)), '')
-        ]
+        pattern = re.compile(r"-H&#92;s+'([^']+?):&#92;s*([^']*)'")
         
-        for source in cookie_sources:
-            for pair in filter(None, source.split(';')):
-                if '=' in pair:
-                    k, v = pair.split('=', 1)
-                    cookies[k.strip()] = v.strip()
+        for match in pattern.findall(curl):
+            key = match[0].strip()
+            value = match[1].strip()
+            if key.lower() == 'cookie':
+                continue  # 跳过Cookie头
+            headers[key] = value
+            logger.debug(f"识别到请求头: {key}=****")
+            
+        return headers
 
-        return headers, cookies
+    @staticmethod
+    def _extract_cookies(curl: str) -> Dict[str, str]:
+        """提取并合并Cookie信息"""
+        cookies = {}
+        
+        # 从-b参数提取
+        if b_match := re.search(r"-b&#92;s+'([^']+)'", curl):
+            for pair in b_match.group(1).split(';'):
+                CurlParser._add_cookie_pair(pair, cookies)
+                
+        # 从Cookie头提取
+        if c_match := re.search(r"-H&#92;s+'Cookie:&#92;s*([^']*)'", curl):
+            for pair in c_match.group(1).split(';'):
+                CurlParser._add_cookie_pair(pair, cookies)
+                
+        logger.debug(f"解析到{len(cookies)}个Cookie")
+        return cookies
+
+    @staticmethod
+    def _add_cookie_pair(pair: str, cookie_dict: Dict):
+        """安全添加单个Cookie"""
+        pair = pair.strip()
+        if '=' in pair:
+            k, v = pair.split('=', 1)
+            cookie_dict[k.strip()] = v.strip()
+        elif pair:
+            logger.warning(f"⚠️ 忽略无效Cookie段: {pair}")
 
 # ======================
-# 动态配置初始化
+# 配置初始化
 # ======================
-# 必需参数
-B_VALUES = SecurityConfig.load_books()
+try:
+    # 书籍ID配置
+    book_ids = SecurityConfig.load_books()
+    
+    # CURL配置解析
+    curl_command = os.getenv('WXREAD_CURL_BASH', '')
+    headers, cookies = CurlParser.parse(curl_command)
+    
+    if not headers or not cookies:
+        logger.critical("❌ CURL配置解析失败，请检查格式")
+        raise ValueError("无效的CURL配置")
+        
+    logger.info("✅ 配置初始化完成")
 
-# 请求配置
-curl_command = os.getenv('WXREAD_CURL_BASH', '')
-headers, cookies = SecurityConfig.parse_curl(curl_command) if curl_command else ({}, {})
+except Exception as e:
+    logger.critical("‼️ 配置加载失败，程序终止")
+    raise
 
-# 推送配置
-PUSH_CONFIG = {
-    'method': os.getenv('PUSH_METHOD', '').lower(),
-    'pushplus': os.getenv('PUSHPLUS_TOKEN'),
-    'telegram': (os.getenv('TG_BOT_TOKEN'), os.getenv('TG_CHAT_ID')),
-    'wxpusher': os.getenv('WXPUSHER_TOKEN')
-}
-
-# 请求模板（动态字段由主程序填充）
-REQUEST_TEMPLATE = {
-    "appId": os.getenv('APP_ID', 'wb_default_app_id'),
-    "b": None,
-    "c": os.getenv('C_VALUE', 'default_c_value'),
-    "ci": int(os.getenv('CI_VALUE', 137)),
-    "co": int(os.getenv('CO_VALUE', 7098)),
-    "sm": "经典段落示例...",
-    "pr": 55,
-    "rt": 30,
-    "ts": None,
-    "rn": None,
-    "sg": None,
-    "ct": None,
-    "ps": os.getenv('PS_VALUE', 'default_ps'),
-    "pc": os.getenv('PC_VALUE', 'default_pc'),
-}
+# 导出配置
+B_VALUES: List[str] = book_ids
+headers: Dict[str, str] = headers
+cookies: Dict[str, str] = cookies
