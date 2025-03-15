@@ -61,14 +61,15 @@ jobs:
     - name: 🎲 周日随机检查
       if: |
         github.event_name == 'schedule' &&
-        contains(github.event.schedule, '0 21 * * 0')  # 匹配周日任务
+        contains(github.event.schedule, '0 21 * * 0')  # 正确写法
       run: |
         CHECK=$(python -c "import random; print(random.randint(0, 6))")
-        echo "🎯 周日随机数：$CHECK (需等于0)"
+        echo "周日随机数：$CHECK (需要等于0)"
         if [ $CHECK -ne 0 ]; then
           echo "⏭️ 跳过周日任务"
           exit 0
         fi
+
 
     - name: 📖 执行阅读任务
       env:
