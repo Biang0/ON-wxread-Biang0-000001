@@ -46,21 +46,10 @@ headers = {
 """
 # 指定列表
 b_values = [
-    "32c322d072aadd6432c59a9",
-    "4be320905b94534becfd24b",
-    "d2c324d0723f69d6d2c98ec",
-    "0ca32480813ab749cg016f04",
-    "de1326c0813ab9641g0144d7",
-    "5b532b1071d8ceb95b5cdeb",
-    "bd8323b0715d9698bd82831",
-    "8b9329607186dc198b9bdab",
-    "50c32b70813ab8d2fg014d8a",
-    "659320e0813ab990eg01339d",
-    "390325d072479672390034f",
-    "63432f80813ab7c0eg015a06",
-    "54c32470813ab9779g019d78",
-    "ef432b305dd664ef447bcb5",
-    "0143250071c626730142037",
+    "ce032b305a9bc1ce0b0dd2a",
+    "3a8321c0813ab7839g011bd5",
+    "f623242072a191daf6294db",
+    
 ]
 
 random_b_value = random.choice(b_values)
