@@ -43,9 +43,11 @@ def get_wr_skey():
 logging.info(f"📖 书籍列表: {book_mapping}")
 logging.info(f"📚 b值列表: {b_values}")
 
-# 输出当前阅读的书籍
+# 输出当前阅读的书籍（书名加大加粗）
 selected_book = book_mapping.get(random_b_value, "未知书籍")
-logging.info(f"📖 本次阅读书籍: {selected_book} (b值: {random_b_value})")
+formatted_book_name = f"\n🔵🔵🔵🔵🔵\n📖 **本次阅读书籍：{selected_book}**\n🔵🔵🔵🔵🔵"
+
+logging.info(formatted_book_name)
 
 index = 1
 try:
@@ -75,9 +77,9 @@ try:
 
     logging.info("🎉 阅读任务完成！")
 
-    # 发送成功推送
+    # 发送成功推送（书名加粗）
     if PUSH_METHOD:
-        push(f"🎉 自动阅读完成！📖 {selected_book} ⏱️ {READ_NUM * 0.5} 分钟", PUSH_METHOD)
+        push(f"🎉 **自动阅读完成！**\n📖 **{selected_book}**", PUSH_METHOD)
 
 except Exception as e:
     error_message = f"❌ 运行失败: {str(e)}"
@@ -86,5 +88,5 @@ except Exception as e:
     # 发送失败通知
     if PUSH_METHOD:
         push(error_message, PUSH_METHOD)
-    
+
     raise  # 让 GitHub Actions 失败
