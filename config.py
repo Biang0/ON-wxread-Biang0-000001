@@ -12,7 +12,7 @@ import random
 # 阅读次数 默认120次/60分钟
 READ_NUM = int(os.getenv('READ_NUM') or 120)
 # 需要推送时可选，可选 pushplus、wxpusher、telegram
-PUSH_METHOD = "" or os.getenv('PUSH_METHOD')
+PUSH_METHOD = "" or os.getenv('PUSH_METHOD')  
 # pushplus 推送时需填
 PUSHPLUS_TOKEN = "" or os.getenv("PUSHPLUS_TOKEN")
 # telegram 推送时需填
@@ -47,22 +47,22 @@ headers = {
 
 # 书籍映射表
 b_values = [
-    "ce032b305a9bc1ce0b0dd2a",  # 三体1
-    "3a8321c0813ab7839g011bd5",  # 三体2
-    "f623242072a191daf6294db",  # 三体3
+    "66b3227071c0abb966b281b",  # 罪连环（全集）  
+    "a57325c05c8ed3a57224187",  # 明朝那些事儿(全集)  
+    "39f329907161e25e39f893e",  # 明朝那些事儿(增补版)(套装全九册)  
 ]
 
-book_mapping = {
-    "ce032b305a9bc1ce0b0dd2a": "三体1：地球往事",
-    "3a8321c0813ab7839g011bd5": "三体2：黑暗森林",
-    "f623242072a191daf6294db": "三体3：死神永生",
+book_mapping = {        
+    "66b3227071c0abb966b281b": "罪连环（全集）"，  
+    "a57325c05c8ed3a57224187": "明朝那些事儿(全集)",  
+    "39f329907161e25e39f893e": "明朝那些事儿(增补版)(套装全九册)",  
 }
 
 # 随机选择一本书
 random_b_value = random.choice(b_values)
 
 # ===== GitHub Actions 输出 =====
-print(f"📚 书籍映射表: {json.dumps(book_mapping, ensure_ascii=False, indent=2)}")
+print(f"📚 书籍映射表: {json.dumps(book_mapping, ensure_ascii=False, indent=2)}")  
 print(f"📖 可用书籍 b 值: {b_values}")
 print(f"🎯 选定书籍: {book_mapping.get(random_b_value, '未知书籍')} (b值: {random_b_value})")
 
