@@ -6,7 +6,7 @@ import logging
 import hashlib
 import requests
 from push import push
-from config import data, headers, cookies, READ_NUM, PUSH_METHOD, book_mapping, b_values, random_b_value
+from config import data, headers, cookies, READ_NUM, PUSH_METHOD, book_mapping, random_b_value
 
 # 配置日志
 logger = logging.getLogger(__name__)
@@ -39,13 +39,9 @@ def get_wr_skey():
             return cookie.split('=')[-1][:8]
     return None
 
-# GitHub Actions 日志输出
-logging.info(f"📖 书籍列表: {book_mapping}")
-logging.info(f"📚 b值列表: {b_values}")
-
-# 输出当前阅读的书籍（书名加大加粗）
+# 输出当前阅读的书籍（加大加粗显示）
 selected_book = book_mapping.get(random_b_value, "未知书籍")
-formatted_book_name = f"\n🔵🔵🔵🔵🔵\n📖 **本次阅读书籍：{selected_book}**\n🔵🔵🔵🔵🔵"
+formatted_book_name = f"\n🔵🔵🔵🔵🔵\n📖 **当前阅读书籍：{selected_book}**\n🔵🔵🔵🔵🔵"
 
 logging.info(formatted_book_name)
 
