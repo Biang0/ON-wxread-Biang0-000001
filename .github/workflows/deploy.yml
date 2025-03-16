@@ -42,8 +42,8 @@ jobs:
         pip install certifi==2024.8.30 charset-normalizer==3.4.0 idna==3.10.0 requests==2.32.3 urllib3==2.2.3
         echo "✅ 依赖安装验证：$(pip list | grep requests)"
 
-    - name: ⏱️ 随机延迟（仅自动模式）
-      if: github.event.inputs.mode == 'auto'
+    - name: ⏱️ 随机延迟（自动模式或计划模式）
+      if: github.event.inputs.mode == 'auto' || github.event_name == 'schedule'
       run: |
         DELAY=$((RANDOM % 21))
         echo "⏳ 生成的随机延迟：${DELAY} 分钟"
@@ -104,4 +104,4 @@ jobs:
       run: |
         echo "=== 执行参数 ==="
         echo "READ_NUM: ${{ env.READ_NUM }}"
-        python main.py
+        python main.py    
