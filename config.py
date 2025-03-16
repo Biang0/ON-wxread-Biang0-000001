@@ -1,6 +1,7 @@
 # config.py 自定义配置,包括阅读次数、推送token的填写
 import os
 import re
+import random
 
 """
 可修改区域
@@ -43,9 +44,29 @@ headers = {
 """
 建议保留区域|默认读三体，其它书籍自行测试时间是否增加
 """
+# 指定列表
+b_values = [
+    "32c322d072aadd6432c59a9",
+    "4be320905b94534becfd24b",
+    "d2c324d0723f69d6d2c98ec",
+    "0ca32480813ab749cg016f04",
+    "de1326c0813ab9641g0144d7",
+    "5b532b1071d8ceb95b5cdeb",
+    "bd8323b0715d9698bd82831",
+    "8b9329607186dc198b9bdab",
+    "50c32b70813ab8d2fg014d8a",
+    "659320e0813ab990eg01339d",
+    "390325d072479672390034f",
+    "63432f80813ab7c0eg015a06",
+    "54c32470813ab9779g019d78",
+    "ef432b305dd664ef447bcb5",
+    "0143250071c626730142037",
+]
+
+random_b_value = random.choice(b_values)
 data = {
     "appId": "wb182564874663h152492176",
-    "b": "ce032b305a9bc1ce0b0dd2a",
+    "b": random_b_value,  # 从指定列表中随机选择
     "c": "7cb321502467cbbc409e62d",
     "ci": 70,
     "co": 0,
