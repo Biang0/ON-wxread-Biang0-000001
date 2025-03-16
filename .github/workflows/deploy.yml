@@ -8,12 +8,12 @@ on:
     - cron: '0 9 * * sat,sun'       # 周末任务：17:00（周六/日）
     - cron: '0 0 * * sat,sun'       # 周随机任务：08:00（周末）
   workflow_dispatch:
-    description: 手动触发微信阅读任务（不触发随机延迟）
+    description: 手动触发微信阅读任务（默认manual模式）
     inputs:
       mode:
         description: '运行模式 (auto/manual)'
         required: false
-        default: 'auto'
+        default: 'manual'  # 默认手动模式
 
 jobs:
   deploy:
@@ -103,10 +103,26 @@ jobs:
         echo "✅ 最终READ_NUM: $NUM (等效 $((NUM / 2)) 分钟)"
         echo "READ_NUM=$NUM" >> $GITHUB_ENV
 
-    - name: 🚀 执行主程序
+    - name: 🔢 生成random_b_value和书名
+      run: |
+        B_VALUES=$(python -c "import ast; with open('config.py', 'r') as f: tree = ast.parse(f.read()); for node in ast.walk(tree): if isinstance(node, ast.Assign) and node.targets[0].id == 'b_values': print(ast.literal_eval(node.value))")
+        BOOK_MAPPING=$(python -c "import ast; with open('config.py', 'r') as f: tree = ast.parse(f.read()); for node in ast.walk(tree): if isinstance(node, ast.Assign) and node.targets[0].id == 'book_mapping': print(ast.literal_eval(node.value))")
+        
+        B_VALUES_ARRAY=(${B_VALUES// / })
+        RANDOM_INDEX=$((RANDOM % ${#B_VALUES_ARRAY[@]}))
+        RANDOM_B_VALUE=${B_VALUES_ARRAY[$RANDOM_INDEX]}
+        
+        BOOK_NAME=$(python -c "import ast; book_mapping = ast.literal_eval('$BOOK_MAPPING'); print(book_mapping.get('$RANDOM_B_VALUE', '未知书籍'))")
+        
+        echo "RANDOM_B_VALUE=$RANDOM_B_VALUE" >> $GITHUB_ENV
+        echo "BOOK_NAME=$BOOK_NAME" >> $GITHUB_ENV
+
+    - name: 🚀 执行主程序 (b: ${{ env.RANDOM_B_VALUE }}, 书名: ${{ env.BOOK_NAME }})
       env:
         WXREAD_CURL_BASH: ${{ secrets.WXREAD_CURL_BASH }}
       run: |
         echo "=== 执行参数 ==="
         echo "READ_NUM: ${{ env.READ_NUM }}"
+        echo "RANDOM_B_VALUE: ${{ env.RANDOM_B_VALUE }}"
+        echo "BOOK_NAME: ${{ env.BOOK_NAME }}"
         python main.py
