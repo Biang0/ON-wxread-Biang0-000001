@@ -47,8 +47,11 @@ jobs:
       run: |
         DELAY=$((RANDOM % 21))
         echo "⏳ 生成的随机延迟：${DELAY} 分钟"
-        sleep $((DELAY * 60))
-        echo "✅ 延迟执行完成"
+        for ((i=DELAY*60; i>0; i--)); do
+          echo -ne "剩余时间: $((i/60)) 分 $((i%60)) 秒 \r"
+          sleep 1
+        done
+        echo -e "\n✅ 延迟执行完成"
 
     - name: 🎲 周随机检查
       if: github.event_name == 'schedule' && github.event.schedule == '0 0 * * sat,sun'
@@ -104,4 +107,4 @@ jobs:
       run: |
         echo "=== 执行参数 ==="
         echo "READ_NUM: ${{ env.READ_NUM }}"
-        python main.py    
+        python main.py   
