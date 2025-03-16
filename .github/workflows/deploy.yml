@@ -25,6 +25,10 @@ on:
         type: string
         description: '手动输入自定义阅读时间（分钟，仅手动触发有效）'
         required: false
+      custom_delay:
+        type: string
+        description: '手动输入自定义延迟时间（分钟，仅手动触发有效）'
+        required: false
 
 jobs:
   deploy:
@@ -58,11 +62,22 @@ jobs:
         echo "✅ 依赖安装验证：$(pip list | grep requests)"
 
     - name: ⏱️ 随机延迟（自动模式或计划模式）
-      if: github.event.inputs.mode == 'auto' || github.event_name == 'schedule'
+      if: github.event.inputs.mode == 'auto' && github.event_name != 'workflow_dispatch' || github.event_name == 'schedule'
       run: |
         # 生成 0 到 20 之间的随机数作为延迟分钟数
         DELAY=$((RANDOM % 21))
         echo "⏳ 生成的随机延迟：${DELAY} 分钟"
+        for ((i=DELAY*60; i>0; i--)); do
+          echo -ne "剩余时间: $((i/60)) 分 $((i%60)) 秒 \r"
+          sleep 1
+        done
+        echo -e "\n✅ 延迟执行完成"
+
+    - name: ⏱️ 自定义延迟（手动触发）
+      if: github.event_name == 'workflow_dispatch' && github.event.inputs.custom_delay != ''
+      run: |
+        DELAY=${{ github.event.inputs.custom_delay }}
+        echo "⏳ 自定义延迟：${DELAY} 分钟"
         for ((i=DELAY*60; i>0; i--)); do
           echo -ne "剩余时间: $((i/60)) 分 $((i%60)) 秒 \r"
           sleep 1
@@ -89,6 +104,7 @@ jobs:
         echo "输入模式: ${{ github.event.inputs.mode }}"
         echo "定时规则: ${{ github.event.schedule }}"
         echo "自定义时间: ${{ github.event.inputs.custom_time }}"
+        echo "自定义延迟: ${{ github.event.inputs.custom_delay }}"
 
         if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
           # 手动触发时，使用自定义时间（如果存在）
