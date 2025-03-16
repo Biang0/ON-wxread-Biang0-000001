@@ -67,22 +67,78 @@ jobs:
         # 生成 0 到 20 之间的随机数作为延迟分钟数
         DELAY=$((RANDOM % 21))
         echo "⏳ 生成的随机延迟：${DELAY} 分钟"
-        for ((i=DELAY*60; i>0; i--)); do
-          echo -ne "剩余时间: $((i/60)) 分 $((i%60)) 秒 \r"
+        TOTAL_SECONDS=$((DELAY * 60))
+        echo "::group::延迟倒计时"
+        # 定义颜色变量
+        GREEN='\033[0;32m'
+        YELLOW='\033[0;33m'
+        RED='\033[0;31m'
+        NC='\033[0m' # No Color
+        ANIMATION_CHARS=("-" "\\" "|" "/")
+        ANIMATION_INDEX=0
+        for ((i = 0; i <= TOTAL_SECONDS; i++)); do
+          PERCENT=$((i * 100 / TOTAL_SECONDS))
+          TERM_WIDTH=$(tput cols)
+          PROGRESS_WIDTH=$((TERM_WIDTH - 20))
+          PROGRESS=$(printf "%0.s${GREEN}█${NC}" $(seq 1 $((PERCENT * PROGRESS_WIDTH / 100))));
+          REMAINING=$((TOTAL_SECONDS - i))
+          MINUTES=$((REMAINING / 60))
+          SECONDS=$((REMAINING % 60))
+          COLOR=""
+          if [ $PERCENT -lt 30 ]; then
+            COLOR=$GREEN
+          elif [ $PERCENT -lt 70 ]; then
+            COLOR=$YELLOW
+          else
+            COLOR=$RED
+          fi
+          ANIMATION=${ANIMATION_CHARS[$ANIMATION_INDEX]}
+          ANIMATION_INDEX=$(((ANIMATION_INDEX + 1) % ${#ANIMATION_CHARS[@]}))
+          printf "\r${COLOR}[%-*s] %d%% %s 剩余时间: %02d:%02d${NC}" "$PROGRESS_WIDTH" "$PROGRESS" "$PERCENT" "$ANIMATION" "$MINUTES" "$SECONDS"
           sleep 1
         done
-        echo -e "\n✅ 延迟执行完成"
+        echo -e "\n${GREEN}=== 倒计时结束！ ===${NC}"
+        echo -e "\n::endgroup::"
+        echo "✅ 延迟执行完成"
 
     - name: ⏱️ 自定义延迟（手动触发）
       if: github.event_name == 'workflow_dispatch' && github.event.inputs.custom_delay != ''
       run: |
         DELAY=${{ github.event.inputs.custom_delay }}
         echo "⏳ 自定义延迟：${DELAY} 分钟"
-        for ((i=DELAY*60; i>0; i--)); do
-          echo -ne "剩余时间: $((i/60)) 分 $((i%60)) 秒 \r"
+        TOTAL_SECONDS=$((DELAY * 60))
+        echo "::group::延迟倒计时"
+        # 定义颜色变量
+        GREEN='\033[0;32m'
+        YELLOW='\033[0;33m'
+        RED='\033[0;31m'
+        NC='\033[0m' # No Color
+        ANIMATION_CHARS=("-" "\\" "|" "/")
+        ANIMATION_INDEX=0
+        for ((i = 0; i <= TOTAL_SECONDS; i++)); do
+          PERCENT=$((i * 100 / TOTAL_SECONDS))
+          TERM_WIDTH=$(tput cols)
+          PROGRESS_WIDTH=$((TERM_WIDTH - 20))
+          PROGRESS=$(printf "%0.s${GREEN}█${NC}" $(seq 1 $((PERCENT * PROGRESS_WIDTH / 100))));
+          REMAINING=$((TOTAL_SECONDS - i))
+          MINUTES=$((REMAINING / 60))
+          SECONDS=$((REMAINING % 60))
+          COLOR=""
+          if [ $PERCENT -lt 30 ]; then
+            COLOR=$GREEN
+          elif [ $PERCENT -lt 70 ]; then
+            COLOR=$YELLOW
+          else
+            COLOR=$RED
+          fi
+          ANIMATION=${ANIMATION_CHARS[$ANIMATION_INDEX]}
+          ANIMATION_INDEX=$(((ANIMATION_INDEX + 1) % ${#ANIMATION_CHARS[@]}))
+          printf "\r${COLOR}[%-*s] %d%% %s 剩余时间: %02d:%02d${NC}" "$PROGRESS_WIDTH" "$PROGRESS" "$PERCENT" "$ANIMATION" "$MINUTES" "$SECONDS"
           sleep 1
         done
-        echo -e "\n✅ 延迟执行完成"
+        echo -e "\n${GREEN}=== 倒计时结束！ ===${NC}"
+        echo -e "\n::endgroup::"
+        echo "✅ 延迟执行完成"
 
     - name: 🎲 周随机检查
       if: github.event_name == 'schedule' && github.event.schedule == '0 0 * * sat,sun'
@@ -109,11 +165,14 @@ jobs:
         if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
           # 手动触发时，使用自定义时间（如果存在）
           if [[ -n "${{ github.event.inputs.custom_time }}" ]]; then
+            # 若用户手动输入了自定义阅读时间，则将其乘以 2 作为 READ_NUM
             NUM=$(( ${{ github.event.inputs.custom_time }} * 2 ))
             echo "🕹️ 手动触发 | 使用自定义时间: ${{ github.event.inputs.custom_time }} 分钟，等效 READ_NUM: $NUM"
           else
             # 手动触发但未提供自定义时间时，根据 mode 生成默认值
             if [[ "${{ github.event.inputs.mode }}" == "manual" ]]; then
+              # 手动模式下，生成 60 到 120 之间的随机数作为 READ_NUM
+              # 该范围等效于 30 到 60 分钟的阅读时间
               NUM=$((RANDOM % 61 + 60))
               echo "🕹️ 手动模式 | 范围: 60-120 (30-60分钟)"
             else
@@ -121,26 +180,32 @@ jobs:
               SCHEDULE="${{ github.event.schedule }}"
               case "$SCHEDULE" in
                 '0 21 * * 1-5')
+                  # 早间任务（周一到周五 05:00 触发），生成 130 到 160 之间的随机数作为 READ_NUM
                   NUM=$((RANDOM % 31 + 130))
                   echo "🌅 早间任务 | 范围: 130-160"
                   ;;
                 '40 3 * * 1-5')
+                  # 午间任务（周一到周五 11:40 触发），生成 160 到 190 之间的随机数作为 READ_NUM
                   NUM=$((RANDOM % 31 + 160))
                   echo "🌞 午间任务 | 范围: 160-190"
                   ;;
                 '0 14 * * *')
+                  # 晚间任务（每天 22:00 触发），生成 190 到 220 之间的随机数作为 READ_NUM
                   NUM=$((RANDOM % 31 + 190))
                   echo "🌙 晚间任务 | 范围: 190-220"
                   ;;
                 '0 9 * * sat,sun')
+                  # 周末任务（周六和周日 17:00 触发），生成 190 到 220 之间的随机数作为 READ_NUM
                   NUM=$((RANDOM % 31 + 190))
                   echo "🎉 周末任务 | 范围: 190-220"
                   ;;
                 '0 0 * * sat,sun')
+                  # 周随机任务（周末 08:00 触发），生成 120 到 180 之间的随机数作为 READ_NUM
                   NUM=$((RANDOM % 61 + 120))
                   echo "🎰 周随机任务 | 范围: 120-180"
                   ;;
                 *)
+                  # 未知触发类型，启用安全默认值，生成 190 到 220 之间的随机数作为 READ_NUM
                   NUM=$((RANDOM % 31 + 190))
                   echo "⚠️ 未知触发类型 | 启用安全默认值: 190-220"
                   ;;
@@ -152,26 +217,32 @@ jobs:
           SCHEDULE="${{ github.event.schedule }}"
           case "$SCHEDULE" in
             '0 21 * * 1-5')
+              # 早间任务（周一到周五 05:00 触发），生成 130 到 160 之间的随机数作为 READ_NUM
               NUM=$((RANDOM % 31 + 130))
               echo "🌅 早间任务 | 范围: 130-160"
               ;;
             '40 3 * * 1-5')
+              # 午间任务（周一到周五 11:40 触发），生成 160 到 190 之间的随机数作为 READ_NUM
               NUM=$((RANDOM % 31 + 160))
               echo "🌞 午间任务 | 范围: 160-190"
               ;;
             '0 14 * * *')
+              # 晚间任务（每天 22:00 触发），生成 190 到 220 之间的随机数作为 READ_NUM
               NUM=$((RANDOM % 31 + 190))
               echo "🌙 晚间任务 | 范围: 190-220"
               ;;
             '0 9 * * sat,sun')
+              # 周末任务（周六和周日 17:00 触发），生成 190 到 220 之间的随机数作为 READ_NUM
               NUM=$((RANDOM % 31 + 190))
               echo "🎉 周末任务 | 范围: 190-220"
               ;;
             '0 0 * * sat,sun')
+              # 周随机任务（周末 08:00 触发），生成 120 到 180 之间的随机数作为 READ_NUM
               NUM=$((RANDOM % 61 + 120))
               echo "🎰 周随机任务 | 范围: 120-180"
               ;;
             *)
+              # 未知触发类型，启用安全默认值，生成 190 到 220 之间的随机数作为 READ_NUM
               NUM=$((RANDOM % 31 + 190))
               echo "⚠️ 未知触发类型 | 启用安全默认值: 190-220"
               ;;
