@@ -84,24 +84,25 @@ jobs:
         echo "✅ 最终READ_NUM: $NUM (等效 $((NUM / 2)) 分钟)"
         echo "READ_NUM=$NUM" >> $GITHUB_ENV
 
-    - name: 🔢 生成random_b_value和书名
-      run: |
-        # 读取b_values
-        B_VALUES=$(python -c "import ast; with open('config.py', 'r') as f: tree = ast.parse(f.read()); for node in ast.walk(tree): if isinstance(node, ast.Assign) and node.targets[0].id == 'b_values': print(ast.literal_eval(node.value))")
-        
-        # 读取book_mapping
-        BOOK_MAPPING=$(python -c "import ast; with open('config.py', 'r') as f: tree = ast.parse(f.read()); for node in ast.walk(tree): if isinstance(node, ast.Assign) and node.targets[0].id == 'book_mapping': print(ast.literal_eval(node.value))")
-        
-        # 随机选择b值
-        B_ARRAY=(${B_VALUES// / })
-        RANDOM_B_VALUE=${B_ARRAY[$((RANDOM % ${#B_ARRAY[@]}))]}
-        
-        # 获取书名
-        BOOK_NAME=$(python -c "import ast; bm = ast.literal_eval('$BOOK_MAPPING'); print(bm.get('$RANDOM_B_VALUE', '未知书籍'))")
-        
-        # 输出到环境变量
-        echo "RANDOM_B_VALUE=$RANDOM_B_VALUE" >> $GITHUB_ENV
-        echo "BOOK_NAME=$BOOK_NAME" >> $GITHUB_ENV
+     - name: 🔢 生成random_b_value和书名
+  run: |
+    # 读取b_values
+    B_VALUES=$(python -c "import ast; with open(\"config.py\", \"r\") as f: tree = ast.parse(f.read()); for node in ast.walk(tree): if isinstance(node, ast.Assign) and node.targets[0].id == \"b_values\": print(ast.literal_eval(node.value))")
+    
+    # 读取book_mapping（修复后的第106行）
+    BOOK_MAPPING=$(python -c "import ast; with open(\"config.py\", \"r\") as f: tree = ast.parse(f.read()); for node in ast.walk(tree): if isinstance(node, ast.Assign) and node.targets[0].id == \"book_mapping\": print(ast.literal_eval(node.value))")
+    
+    # 随机选择b值
+    B_ARRAY=(${B_VALUES// / })
+    RANDOM_B_VALUE=${B_ARRAY[$((RANDOM % ${#B_ARRAY[@]}))]}
+    
+    # 获取书名
+    BOOK_NAME=$(python -c "import ast; bm = ast.literal_eval('$BOOK_MAPPING'); print(bm.get('$RANDOM_B_VALUE', '未知书籍'))")
+    
+    # 输出到环境变量
+    echo "RANDOM_B_VALUE=$RANDOM_B_VALUE" >> $GITHUB_ENV
+    echo "BOOK_NAME=$BOOK_NAME" >> $GITHUB_ENV
+
 
     - name: 🚀 执行主程序 (b: ${{ env.RANDOM_B_VALUE }}, 书名: ${{ env.BOOK_NAME }})
       env:
