@@ -2,18 +2,19 @@ name: wxread
 
 on:
   schedule:
-    - cron: '00 14 * * *'           # 晚间任务：22:00（每天）
-    - cron: '0 21 * * 1-5'          # 早间任务：05:00（周一到周五）
-    - cron: '40 3 * * 1-5'          # 午间任务：11:40（周一到周五）
-    - cron: '0 9 * * sat,sun'       # 周末任务：17:00（周六/日）
-    - cron: '0 0 * * sat,sun'       # 周随机任务：08:00（周末）
+    - cron: '0 14 * * *'          # 晚间任务：22:00（每天）
+    - cron: '0 21 * * 1-5'        # 早间任务：05:00（周一到周五）
+    - cron: '40 3 * * 1-5'        # 午间任务：11:40（周一到周五）
+    - cron: '0 9 * * sat,sun'     # 周末任务：17:00（周六/日）
+    - cron: '0 0 * * sat,sun'     # 周随机任务：08:00（周末）
+
   workflow_dispatch:
-    description: 手动触发微信阅读任务（默认不延迟）
+    description: 手动触发微信阅读任务（不触发随机延迟）
     inputs:
       mode:
         description: '运行模式 (auto/manual)'
         required: false
-        default: 'manual'   # 修改默认值为 manual，避免手动触发时有随机延迟
+        default: 'manual'
 
 jobs:
   deploy:
@@ -21,6 +22,12 @@ jobs:
     environment: AutoRead
 
     steps:
+    - name: 🔧 设置 DNS
+      run: |
+        echo "nameserver 8.8.8.8" | sudo tee /etc/resolv.conf
+        echo "nameserver 8.8.4.4" | sudo tee -a /etc/resolv.conf
+        echo "✅ DNS 配置完成"
+
     - name: 📥 检出仓库
       uses: actions/checkout@v4
 
@@ -32,9 +39,10 @@ jobs:
     - name: 📦 安装依赖
       run: |
         python -m pip install --upgrade pip
-        pip install -r requirements.txt
+        pip install certifi==2024.8.30 charset-normalizer==3.4.0 idna==3.10.0 requests==2.32.3 urllib3==2.2.3
+        echo "✅ 依赖安装验证：$(pip list | grep requests)"
 
-    - name: ⏱️ 随机延迟（仅限自动模式）
+    - name: ⏱️ 随机延迟（仅自动模式）
       if: github.event.inputs.mode == 'auto'
       run: |
         DELAY=$((RANDOM % 21))
@@ -42,10 +50,58 @@ jobs:
         sleep $((DELAY * 60))
         echo "✅ 延迟执行完成"
 
+    - name: 🎲 周随机检查
+      if: github.event_name == 'schedule' && github.event.schedule == '0 0 * * sat,sun'
+      run: |
+        CHECK=$((RANDOM % 7))
+        echo "🎲 随机数：$CHECK (需要等于0)"
+        if [ $CHECK -ne 0 ]; then
+          echo "⏭️ 跳过周随机任务"
+          exit 0
+        fi
+        echo "🎉 触发周随机任务"
+
+    - name: 🔢 生成 READ_NUM
+      run: |
+        echo "=== 触发事件分析 ==="
+        echo "事件类型: ${{ github.event_name }}"
+        echo "输入模式: ${{ github.event.inputs.mode }}"
+        echo "定时规则: ${{ github.event.schedule }}"
+
+        if [[ "${{ github.event.inputs.mode }}" == "manual" ]]; then
+          NUM=$((RANDOM % 61 + 60))   # 60-120（等效30-60分钟）
+          echo "🕹️ 手动模式 | 范围: 60-120 (30-60分钟)"
+        else
+          SCHEDULE="${{ github.event.schedule }}"
+          case "$SCHEDULE" in
+            '0 21 * * 1-5')
+              NUM=$((RANDOM % 31 + 130))   # 130-160（等效65-80分钟）
+              echo "🌅 早间任务 | 范围: 130-160" ;;
+            '40 3 * * 1-5')
+              NUM=$((RANDOM % 31 + 160))  # 160-190（等效80-95分钟）
+              echo "🌞 午间任务 | 范围: 160-190" ;;
+            '0 14 * * *')
+              NUM=$((RANDOM % 31 + 190))  # 190-220（等效95-110分钟）
+              echo "🌙 晚间任务 | 范围: 190-220" ;;
+            '0 9 * * sat,sun')
+              NUM=$((RANDOM % 31 + 190))  # 190-220（等效95-110分钟）
+              echo "🎉 周末任务 | 范围: 190-220" ;;
+            '0 0 * * sat,sun')
+              NUM=$((RANDOM % 61 + 120))  # 120-180（等效60-90分钟）
+              echo "🎰 周随机任务 | 范围: 120-180" ;;
+            *)
+              NUM=$((RANDOM % 31 + 190))  # 默认值
+              echo "⚠️ 未知触发类型 | 启用安全默认值: 190-220" ;;
+          esac
+        fi
+
+        echo "✅ 最终 READ_NUM: $NUM (等效 $((NUM / 2)) 分钟)"
+        echo "READ_NUM=$NUM" >> $GITHUB_ENV
+
     - name: 🚀 执行主程序
       env:
         WXREAD_CURL_BASH: ${{ secrets.WXREAD_CURL_BASH }}
       run: |
         echo "=== 执行参数 ==="
         echo "READ_NUM: ${{ env.READ_NUM }}"
-        python main.py || (echo "❌ 运行失败，推送通知..." && python -c "from push import push; push('❌ 微信阅读任务失败，请检查日志！', '${{ secrets.PUSH_METHOD }}')" && exit 1)
+        python main.py
