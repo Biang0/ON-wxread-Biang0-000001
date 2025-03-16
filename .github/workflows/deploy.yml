@@ -96,6 +96,7 @@ jobs:
 
     - name: 🔢 生成 READ_NUM
       run: |
+        echo "::group::🔢 生成 READ_NUM"
         echo "=== 触发事件分析 ==="
         echo "事件类型: ${{ github.event_name }}"
         echo "输入模式: ${{ github.event.inputs.mode }}"
@@ -193,6 +194,7 @@ jobs:
         echo "✅ 最终 READ_NUM: $NUM (等效 $((NUM / 2)) 分钟)"
         # 将 READ_NUM 写入环境变量
         echo "READ_NUM=$NUM" >> $GITHUB_ENV
+        echo "::endgroup::"
 
     - name: 🚀 执行主程序
       env:
