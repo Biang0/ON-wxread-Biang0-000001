@@ -17,17 +17,14 @@ on:
         type: choice
         description: '选择运行模式'
         required: true
+        default: 'manual'
         options:
           - auto
           - manual
       custom_time:
-        type: choice
-        description: '选择自定义阅读时间（仅手动模式有效）'
+        type: string
+        description: '手动输入自定义阅读时间（分钟，仅手动模式有效）'
         required: false
-        options:
-          - 15
-          - 30
-          - 45
 
 jobs:
   deploy:
@@ -150,4 +147,4 @@ jobs:
         echo "=== 执行参数 ==="
         echo "READ_NUM: ${{ env.READ_NUM }}"
         # 执行主程序
-        python main.py    
+        python main.py      
