@@ -11,26 +11,23 @@ on:
     - cron: '0 0 * * sat,sun'     # 周随机任务：周末08:00触发
   # 手动触发条件
   workflow_dispatch:
-    description: 手动触发微信阅读任务（不触发随机延迟）
+    description: 手动触发微信阅读任务
     inputs:
       mode:
-        description: '运行模式 (auto/manual)'
-        required: false
-        default: 'manual'
-      task_type:
         type: choice
-        description: '选择任务类型'
-        required: false
-        default: '常规任务'
+        description: '选择运行模式'
+        required: true
         options:
-          - 快速任务
-          - 常规任务
-          - 深度任务
-      debug_mode:
-        type: boolean
-        description: '是否开启调试模式'
+          - auto
+          - manual
+      custom_time:
+        type: choice
+        description: '选择自定义阅读时间（仅手动模式有效）'
         required: false
-        default: false
+        options:
+          - 15
+          - 30
+          - 45
 
 jobs:
   deploy:
@@ -69,9 +66,11 @@ jobs:
         # 生成 0 到 20 之间的随机数作为延迟分钟数
         DELAY=$((RANDOM % 21))
         echo "⏳ 生成的随机延迟：${DELAY} 分钟"
-        # 延迟指定的分钟数
-        sleep $((DELAY * 60))
-        echo "✅ 延迟执行完成"
+        for ((i=DELAY*60; i>0; i--)); do
+          echo -ne "剩余时间: $((i/60)) 分 $((i%60)) 秒 \r"
+          sleep 1
+        done
+        echo -e "\n✅ 延迟执行完成"
 
     - name: 🎲 周随机检查
       if: github.event_name == 'schedule' && github.event.schedule == '0 0 * * sat,sun'
@@ -92,13 +91,18 @@ jobs:
         echo "事件类型: ${{ github.event_name }}"
         echo "输入模式: ${{ github.event.inputs.mode }}"
         echo "定时规则: ${{ github.event.schedule }}"
-        echo "任务类型: ${{ github.event.inputs.task_type }}"
-        echo "调试模式: ${{ github.event.inputs.debug_mode }}"
+        echo "自定义时间: ${{ github.event.inputs.custom_time }}"
 
         if [[ "${{ github.event.inputs.mode }}" == "manual" ]]; then
-          # 手动模式下，生成 60 到 120 之间的随机数（等效 30 - 60 分钟）
-          NUM=$((RANDOM % 61 + 60))
-          echo "🕹️ 手动模式 | 范围: 60-120 (30-60分钟)"
+          if [[ -n "${{ github.event.inputs.custom_time }}" ]]; then
+            # 手动模式下使用自定义时间
+            NUM=$(( ${{ github.event.inputs.custom_time }} * 2 ))
+            echo "🕹️ 手动模式 | 使用自定义时间: ${{ github.event.inputs.custom_time }} 分钟，等效 READ_NUM: $NUM"
+          else
+            # 手动模式下，生成 60 到 120 之间的随机数（等效 30 - 60 分钟）
+            NUM=$((RANDOM % 61 + 60))
+            echo "🕹️ 手动模式 | 范围: 60-120 (30-60分钟)"
+          fi
         else
           SCHEDULE="${{ github.event.schedule }}"
           case "$SCHEDULE" in
@@ -142,12 +146,8 @@ jobs:
     - name: 🚀 执行主程序
       env:
         WXREAD_CURL_BASH: ${{ secrets.WXREAD_CURL_BASH }}
-        TASK_TYPE: ${{ github.event.inputs.task_type }}
-        DEBUG_MODE: ${{ github.event.inputs.debug_mode }}
       run: |
         echo "=== 执行参数 ==="
         echo "READ_NUM: ${{ env.READ_NUM }}"
-        echo "任务类型: ${{ env.TASK_TYPE }}"
-        echo "调试模式: ${{ env.DEBUG_MODE }}"
         # 执行主程序
-        python main.py 
+        python main.py    
