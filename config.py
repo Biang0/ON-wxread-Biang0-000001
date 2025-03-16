@@ -14,7 +14,7 @@ WXPUSHER_SPT = os.getenv("WXPUSHER_SPT", "")
 
 # ===== 书籍信息 =====
 b_values = [
-    "ce032b305a9bc1ce0b0dd2a",  # 三体1
+    "ce032b305a9bc1ce0b0dd2a",  # 三体1  
     "3a8321c0813ab7839g011bd5",  # 三体2
     "f623242072a191daf6294db",  # 三体3
 ]
@@ -46,29 +46,41 @@ data = {
 }
 
 # ===== Headers 和 Cookies 解析 =====
-curl_str = os.getenv('WXREAD_CURL_BASH', '')
-
 def convert(curl_command):
-    """从 `curl` 命令提取 headers 和 cookies"""
+    """提取bash接口中的headers与cookies
+    支持 -H 'Cookie: xxx' 和 -b 'xxx' 两种方式的cookie提取
+    """
+    # 提取 headers
     headers_temp = {}
     for match in re.findall(r"-H '([^:]+): ([^']+)'", curl_command):
         headers_temp[match[0]] = match[1]
 
+    # 提取 cookies
     cookies = {}
-    cookie_header = headers_temp.get("Cookie", "")
+    
+    # 从 -H 'Cookie: xxx' 提取
+    cookie_header = next((v for k, v in headers_temp.items() 
+                         if k.lower() == 'cookie'), '')
+    
+    # 从 -b 'xxx' 提取
     cookie_b = re.search(r"-b '([^']+)'", curl_command)
     cookie_string = cookie_b.group(1) if cookie_b else cookie_header
-
+    
+    # 解析 cookie 字符串
     if cookie_string:
-        for cookie in cookie_string.split('; '):
+        for cookie in cookie_string.split('; '):  
             if '=' in cookie:
                 key, value = cookie.split('=', 1)
                 cookies[key.strip()] = value.strip()
+    
+    # 移除 headers 中的 Cookie/cookie
+    headers = {k: v for k, v in headers_temp.items() 
+              if k.lower() != 'cookie'}
 
-    headers = {k: v for k, v in headers_temp.items() if k.lower() != 'cookie'}
     return headers, cookies
 
-headers, cookies = convert(curl_str) if curl_str else ({}, {})
+
+headers, cookies = convert(curl_str) if curl_str else (headers, cookies)
 
 # ===== GitHub Actions 输出 =====
 print(f"📚 书籍映射表: {json.dumps(book_mapping, ensure_ascii=False, indent=2)}")
