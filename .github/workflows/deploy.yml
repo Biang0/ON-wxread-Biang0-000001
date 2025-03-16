@@ -17,6 +17,20 @@ on:
         description: '运行模式 (auto/manual)'
         required: false
         default: 'manual'
+      task_type:
+        type: choice
+        description: '选择任务类型'
+        required: false
+        default: '常规任务'
+        options:
+          - 快速任务
+          - 常规任务
+          - 深度任务
+      debug_mode:
+        type: boolean
+        description: '是否开启调试模式'
+        required: false
+        default: false
 
 jobs:
   deploy:
@@ -78,6 +92,8 @@ jobs:
         echo "事件类型: ${{ github.event_name }}"
         echo "输入模式: ${{ github.event.inputs.mode }}"
         echo "定时规则: ${{ github.event.schedule }}"
+        echo "任务类型: ${{ github.event.inputs.task_type }}"
+        echo "调试模式: ${{ github.event.inputs.debug_mode }}"
 
         if [[ "${{ github.event.inputs.mode }}" == "manual" ]]; then
           # 手动模式下，生成 60 到 120 之间的随机数（等效 30 - 60 分钟）
@@ -126,8 +142,12 @@ jobs:
     - name: 🚀 执行主程序
       env:
         WXREAD_CURL_BASH: ${{ secrets.WXREAD_CURL_BASH }}
+        TASK_TYPE: ${{ github.event.inputs.task_type }}
+        DEBUG_MODE: ${{ github.event.inputs.debug_mode }}
       run: |
         echo "=== 执行参数 ==="
         echo "READ_NUM: ${{ env.READ_NUM }}"
+        echo "任务类型: ${{ env.TASK_TYPE }}"
+        echo "调试模式: ${{ env.DEBUG_MODE }}"
         # 执行主程序
-        python main.py    
+        python main.py 
