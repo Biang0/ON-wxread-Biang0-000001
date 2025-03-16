@@ -1,7 +1,6 @@
 # config.py 自定义配置,包括阅读次数、推送token的填写
 import os
 import re
-import json
 import random
 
 """
@@ -11,19 +10,19 @@ import random
 
 # 阅读次数 默认120次/60分钟
 READ_NUM = int(os.getenv('READ_NUM') or 120)
-# 需要推送时可选，可选 pushplus、wxpusher、telegram
-PUSH_METHOD = "" or os.getenv('PUSH_METHOD')  
-# pushplus 推送时需填
+# 需要推送时可选，可选pushplus、wxpusher、telegram
+PUSH_METHOD = "" or os.getenv('PUSH_METHOD')
+# pushplus推送时需填
 PUSHPLUS_TOKEN = "" or os.getenv("PUSHPLUS_TOKEN")
-# telegram 推送时需填
+# telegram推送时需填
 TELEGRAM_BOT_TOKEN = "" or os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = "" or os.getenv("TELEGRAM_CHAT_ID")
-# wxpusher 推送时需填
+# wxpusher推送时需填
 WXPUSHER_SPT = "" or os.getenv("WXPUSHER_SPT")
-# read 接口的 bash 命令，本地部署时可对应替换 headers、cookies
+# read接口的bash命令，本地部署时可对应替换headers、cookies
 curl_str = os.getenv('WXREAD_CURL_BASH')
 
-# ===== 原始 headers 和 cookies（不修改） =====
+# headers、cookies是一个省略模版，本地或者docker部署时对应替换
 cookies = {
     'RK': 'oxEY1bTnXf',
     'ptcz': '53e3b35a9486dd63c4d06430b05aa169402117fc407dc5cc9329b41e59f62e2b',
@@ -41,39 +40,26 @@ headers = {
     'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 Edg/131.0.0.0',
 }
 
-"""
-建议保留区域 | 默认读《三体》，其它书籍自行测试时间是否增加
-"""
 
-# 书籍映射表
+"""
+建议保留区域|默认读三体，其它书籍自行测试时间是否增加
+"""
+# 指定列表
 b_values = [
-    "66b3227071c0abb966b281b",  # 罪连环（全集）  
-    "a57325c05c8ed3a57224187",  # 明朝那些事儿(全集)  
-    "39f329907161e25e39f893e",  # 明朝那些事儿(增补版)(套装全九册)  
+    "ce032b305a9bc1ce0b0dd2a",
+    "3a8321c0813ab7839g011bd5",
+    "f623242072a191daf6294db",
+
 ]
 
-book_mapping = {        
-    "66b3227071c0abb966b281b": "罪连环（全集）"，  
-    "a57325c05c8ed3a57224187": "明朝那些事儿(全集)",  
-    "39f329907161e25e39f893e": "明朝那些事儿(增补版)(套装全九册)",  
-}
-
-# 随机选择一本书
 random_b_value = random.choice(b_values)
-
-# ===== GitHub Actions 输出 =====
-print(f"📚 书籍映射表: {json.dumps(book_mapping, ensure_ascii=False, indent=2)}")  
-print(f"📖 可用书籍 b 值: {b_values}")
-print(f"🎯 选定书籍: {book_mapping.get(random_b_value, '未知书籍')} (b值: {random_b_value})")
-
-# ===== 请求数据 =====
 data = {
     "appId": "wb182564874663h152492176",
-    "b": random_b_value,
+    "b": random_b_value,  # 从指定列表中随机选择
     "c": "7cb321502467cbbc409e62d",
     "ci": 70,
     "co": 0,
-    "sm": "示例章节",
+    "sm": "[插图]第三部广播纪元7年，程心艾AA说",
     "pr": 74,
     "rt": 30,
     "ts": 1727660516749,
@@ -85,9 +71,10 @@ data = {
 }
 
 
-# ===== 提取 headers 和 cookies（如果有 curl_str）=====
 def convert(curl_command):
-    """提取 bash 接口中的 headers 与 cookies"""
+    """提取bash接口中的headers与cookies
+    支持 -H 'Cookie: xxx' 和 -b 'xxx' 两种方式的cookie提取
+    """
     # 提取 headers
     headers_temp = {}
     for match in re.findall(r"-H '([^:]+): ([^']+)'", curl_command):
@@ -97,7 +84,8 @@ def convert(curl_command):
     cookies = {}
 
     # 从 -H 'Cookie: xxx' 提取
-    cookie_header = next((v for k, v in headers_temp.items() if k.lower() == 'cookie'), '')
+    cookie_header = next((v for k, v in headers_temp.items() 
+                         if k.lower() == 'cookie'), '')
 
     # 从 -b 'xxx' 提取
     cookie_b = re.search(r"-b '([^']+)'", curl_command)
@@ -111,10 +99,10 @@ def convert(curl_command):
                 cookies[key.strip()] = value.strip()
 
     # 移除 headers 中的 Cookie/cookie
-    headers = {k: v for k, v in headers_temp.items() if k.lower() != 'cookie'}
+    headers = {k: v for k, v in headers_temp.items() 
+              if k.lower() != 'cookie'}
 
     return headers, cookies
 
 
-# 如果 curl_str 存在，则解析，否则使用默认的 headers 和 cookies
 headers, cookies = convert(curl_str) if curl_str else (headers, cookies)
