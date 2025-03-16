@@ -70,16 +70,7 @@ jobs:
         # 生成 0 到 20 之间的随机数作为延迟分钟数
         DELAY=$((RANDOM % 21))
         echo "⏳ 生成的随机延迟：${DELAY} 分钟"
-        TOTAL_SECONDS=$((DELAY * 60))
-        echo "::group::延迟倒计时"
-        for ((i = 0; i <= TOTAL_SECONDS; i++)); do
-          REMAINING=$((TOTAL_SECONDS - i))
-          MINUTES=$((REMAINING / 60))
-          SECONDS=$((REMAINING % 60))
-          printf "\r剩余时间: %02d:%02d" "$MINUTES" "$SECONDS"
-          sleep 1
-        done
-        echo -e "\n::endgroup::"
+        sleep $((DELAY * 60))
         echo "✅ 延迟执行完成"
 
     - name: ⏱️ 自定义延迟（手动触发）
@@ -87,16 +78,7 @@ jobs:
       run: |
         DELAY=${{ github.event.inputs.custom_delay }}
         echo "⏳ 自定义延迟：${DELAY} 分钟"
-        TOTAL_SECONDS=$((DELAY * 60))
-        echo "::group::延迟倒计时"
-        for ((i = 0; i <= TOTAL_SECONDS; i++)); do
-          REMAINING=$((TOTAL_SECONDS - i))
-          MINUTES=$((REMAINING / 60))
-          SECONDS=$((REMAINING % 60))
-          printf "\r剩余时间: %02d:%02d" "$MINUTES" "$SECONDS"
-          sleep 1
-        done
-        echo -e "\n::endgroup::"
+        sleep $((DELAY * 60))
         echo "✅ 延迟执行完成"
 
     - name: 🎲 周随机检查
