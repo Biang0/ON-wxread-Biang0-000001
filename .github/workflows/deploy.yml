@@ -61,8 +61,8 @@ jobs:
         # 验证 requests 库是否安装成功
         echo "✅ 依赖安装验证：$(pip list | grep requests)"
 
-    - name: ⏱️ 随机延迟（自动模式或计划模式）
-      if: github.event.inputs.mode == 'auto' && github.event_name != 'workflow_dispatch' || github.event_name == 'schedule'
+    - name: ⏱️ 随机延迟（自动模式或计划模式或手动触发 auto 无自定义延迟）
+      if: (github.event.inputs.mode == 'auto' && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.event.inputs.custom_delay == '')))
       run: |
         # 生成 0 到 20 之间的随机数作为延迟分钟数
         DELAY=$((RANDOM % 21))
