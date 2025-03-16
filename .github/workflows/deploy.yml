@@ -67,8 +67,11 @@ jobs:
         # 生成 0 到 20 之间的随机数作为延迟分钟数
         DELAY=$((RANDOM % 21))
         echo "⏳ 生成的随机延迟：${DELAY} 分钟"
-        for ((i=DELAY*60; i>0; i--)); do
-          echo -ne "剩余时间: $((i/60)) 分 $((i%60)) 秒 \r"
+        TOTAL_SECONDS=$((DELAY * 60))
+        for ((i = 0; i <= TOTAL_SECONDS; i++)); do
+          PERCENT=$((i * 100 / TOTAL_SECONDS))
+          PROGRESS=$(printf "%0.s=" $(seq 1 $((PERCENT / 2))));
+          printf "\r[%-50s] %d%% 剩余时间: %d 分 %d 秒" "$PROGRESS" "$PERCENT" $(( (TOTAL_SECONDS - i) / 60 )) $(( (TOTAL_SECONDS - i) % 60 ))
           sleep 1
         done
         echo -e "\n✅ 延迟执行完成"
@@ -78,8 +81,11 @@ jobs:
       run: |
         DELAY=${{ github.event.inputs.custom_delay }}
         echo "⏳ 自定义延迟：${DELAY} 分钟"
-        for ((i=DELAY*60; i>0; i--)); do
-          echo -ne "剩余时间: $((i/60)) 分 $((i%60)) 秒 \r"
+        TOTAL_SECONDS=$((DELAY * 60))
+        for ((i = 0; i <= TOTAL_SECONDS; i++)); do
+          PERCENT=$((i * 100 / TOTAL_SECONDS))
+          PROGRESS=$(printf "%0.s=" $(seq 1 $((PERCENT / 2))));
+          printf "\r[%-50s] %d%% 剩余时间: %d 分 %d 秒" "$PROGRESS" "$PERCENT" $(( (TOTAL_SECONDS - i) / 60 )) $(( (TOTAL_SECONDS - i) % 60 ))
           sleep 1
         done
         echo -e "\n✅ 延迟执行完成"
