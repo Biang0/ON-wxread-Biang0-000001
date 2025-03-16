@@ -49,10 +49,18 @@ b_values = [
     "ce032b305a9bc1ce0b0dd2a",
     "3a8321c0813ab7839g011bd5",
     "f623242072a191daf6294db",
-    
 ]
 
+# 新增：b值到书名的映射（示例）
+book_mapping = {
+    "ce032b305a9bc1ce0b0dd2a": "三体1：地球往事",
+    "3a8321c0813ab7839g011bd5": "三体2：黑暗森林",
+    "f623242072a191daf6294db": "三体3：死神永生",
+    # 其他b值对应的书名...
+}
+
 random_b_value = random.choice(b_values)
+
 data = {
     "appId": "wb182564874663h152492176",
     "b": random_b_value,  # 从指定列表中随机选择
