@@ -66,9 +66,9 @@ jobs:
         python -m pip install --upgrade pip
         pip install --no-cache-dir -r requirements.txt
         pip list  # 显示安装的依赖
+        echo "::endgroup::"
         # 验证 requests 库是否安装成功
         echo "✅ 依赖安装验证：$(pip list | grep requests)"
-        echo "::endgroup::"
 
     - name: ⏱️ 随机延迟（自动模式或计划模式或手动触发 自动 无自定义延迟）
       if: (github.event.inputs.mode == '自动' && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.event.inputs.custom_delay == '')))
@@ -127,7 +127,7 @@ jobs:
               # 手动触发 自动 模式时，使用默认的 自动 范围
               SCHEDULE="${{ github.event.schedule }}"
               case "$SCHEDULE" in
-                '0 21 * * 1-5')
+                '0 21 * * 0-4')
                   # 早间任务（周一到周五 05:00 触发），生成 130 到 160 之间的随机数作为 READ_NUM
                   NUM=$((RANDOM % 31 + 130))
                   echo "🌅 早间任务 | 范围: 130-160"
@@ -164,7 +164,7 @@ jobs:
           # 自动触发（schedule）时，按原逻辑生成
           SCHEDULE="${{ github.event.schedule }}"
           case "$SCHEDULE" in
-            '0 21 * * 1-5')
+            '0 21 * * 0-4')
               # 早间任务（周一到周五 05:00 触发），生成 130 到 160 之间的随机数作为 READ_NUM
               NUM=$((RANDOM % 31 + 130))
               echo "🌅 早间任务 | 范围: 130-160"
