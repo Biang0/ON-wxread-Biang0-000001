@@ -115,11 +115,5 @@ workflow_dispatch:
 ### **本地运行**  
 如需在本地运行，请手动执行：
 ```bash
-python main.py
+python main.py  
 ```
-
----
-
-## 📜 许可证  
-
-本项目采用 **MIT License** 开源，你可以自由修改和使用。**请遵守相关使用规则，不得用于非法用途。**
