@@ -92,7 +92,7 @@ jobs:
         # 生成 0 到 59 之间的随机数作为延迟秒数
         DELAY_SECONDS=$((RANDOM % 60))
         # 计算总延迟秒数
-        TOTAL_DELAY=$((DELAY_MINUTES * 60 + DELAY_SECONDS))
+        TOTAL_DELAY=$((DELAY_MINUTES * 60 + DELAY_SECONDS))  
         echo "⏳ 生成的随机延迟：${DELAY_MINUTES} 分钟 ${DELAY_SECONDS} 秒"
         sleep $TOTAL_DELAY
         echo "✅ 延迟执行完成"
@@ -122,6 +122,11 @@ jobs:
           echo "skipped=false" >> $GITHUB_OUTPUT
         fi
 
+    - name: 📚 显示书籍信息
+      if: steps.week_random_check.outputs.skipped != 'true'    
+      run: |
+        python config.py | grep -E '📚 书籍映射表|📖 可用书籍 b 值|🎯 选定书籍'
+        
     - name: 🔢 生成 READ_NUM
       if: steps.week_random_check.outputs.skipped != 'true'
       run: |
@@ -142,7 +147,7 @@ jobs:
                 SCHEDULE='0 14 * * *'
                 ;;
               早间任务)
-                SCHEDULE='0 21 * * 0-4'
+                SCHEDULE='0 21 * * 0-4'  
                 ;;
               午间任务)
                 SCHEDULE='40 3 * * 1-5'
@@ -247,18 +252,13 @@ jobs:
         # 将 READ_NUM 写入环境变量
         echo "READ_NUM=$NUM" >> $GITHUB_ENV  
         echo "::endgroup::"
-
-    - name: 📚 显示书籍信息
-      if: steps.week_random_check.outputs.skipped != 'true'  
-      run: |
-        python config.py | grep -E '📚 书籍映射表|📖 可用书籍 b 值|🎯 选定书籍'
         
     - name: 🚀 执行主程序
-      if: steps.week_random_check.outputs.skipped != 'true'  
+      if: steps.week_random_check.outputs.skipped != 'true'    
       env:
         WXREAD_CURL_BASH: ${{ secrets.WXREAD_CURL_BASH }}
       run: |
         echo "=== 执行参数 ==="
-        echo "READ_NUM: ${{ env.READ_NUM }}"
+        echo "READ_NUM: ${{ env.READ_NUM }}"  
         # 执行主程序
         python main.py    
