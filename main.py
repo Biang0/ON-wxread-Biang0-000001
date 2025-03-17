@@ -50,40 +50,46 @@ def get_wr_skey():
             return cookie.split('=')[-1][:8]
     return None
 
+try:
+    index = 1
+    while index <= READ_NUM:
+        data['ct'] = int(time.time())
+        data['ts'] = int(time.time() * 1000)
+        data['rn'] = random.randint(0, 1000)
+        data['sg'] = hashlib.sha256(f"{data['ts']}{data['rn']}{KEY}".encode()).hexdigest()
+        data['s'] = cal_hash(encode_data(data))
 
-index = 1
-while index <= READ_NUM:
-    data['ct'] = int(time.time())
-    data['ts'] = int(time.time() * 1000)
-    data['rn'] = random.randint(0, 1000)
-    data['sg'] = hashlib.sha256(f"{data['ts']}{data['rn']}{KEY}".encode()).hexdigest()
-    data['s'] = cal_hash(encode_data(data))
+        logging.info(f"⏱️ 尝试第 {index} 次阅读...")
+        response = requests.post(READ_URL, headers=headers, cookies=cookies, data=json.dumps(data, separators=(',', ':')))
+        resData = response.json()
 
-    logging.info(f"⏱️ 尝试第 {index} 次阅读...")
-    response = requests.post(READ_URL, headers=headers, cookies=cookies, data=json.dumps(data, separators=(',', ':')))
-    resData = response.json()
+        if 'succ' in resData:
+            index += 1
+            time.sleep(30)
+            logging.info(f"✅ 阅读成功，阅读进度：{(index - 1) * 0.5} 分钟")
 
-    if 'succ' in resData:
-        index += 1
-        time.sleep(30)
-        logging.info(f"✅ 阅读成功，阅读进度：{(index - 1) * 0.5} 分钟")
-
-    else:
-        logging.warning("❌ cookie 已过期，尝试刷新...")
-        new_skey = get_wr_skey()
-        if new_skey:
-            cookies['wr_skey'] = new_skey
-            logging.info(f"✅ 密钥刷新成功，新密钥：{new_skey}")
-            logging.info(f"🔄 重新本次阅读。")
         else:
-            ERROR_CODE = "❌ 无法获取新密钥或者WXREAD_CURL_BASH配置有误，终止运行。"
-            logging.error(ERROR_CODE)
-            push(ERROR_CODE, PUSH_METHOD)
-            raise Exception(ERROR_CODE)
-    data.pop('s')
+            logging.warning("❌ cookie 已过期，尝试刷新...")
+            new_skey = get_wr_skey()
+            if new_skey:
+                cookies['wr_skey'] = new_skey
+                logging.info(f"✅ 密钥刷新成功，新密钥：{new_skey}")
+                logging.info(f"🔄 重新本次阅读。")
+            else:
+                ERROR_CODE = "❌ 无法获取新密钥或者WXREAD_CURL_BASH配置有误，终止运行。"
+                logging.error(ERROR_CODE)
+                if PUSH_METHOD not in (None, ''):
+                    push(ERROR_CODE, PUSH_METHOD)
+                raise Exception(ERROR_CODE)
+        data.pop('s')
 
-logging.info("🎉 阅读脚本已完成！")
+    logging.info("🎉 阅读脚本已完成！")
 
-if PUSH_METHOD not in (None, ''):
-    logging.info("⏱️ 开始推送...")
-    push(f"🎉 微信读书自动阅读完成！\n⏱️ 阅读时长：{(index - 1) * 0.5}分钟。", PUSH_METHOD)
+    if PUSH_METHOD not in (None, ''):
+        logging.info("⏱️ 开始推送...")
+        push(f"🎉 微信读书自动阅读完成！\n⏱️ 阅读时长：{(index - 1) * 0.5}分钟。", PUSH_METHOD)
+except Exception as e:
+    error_message = f"❌ 程序运行失败，错误信息：{str(e)}"
+    logging.error(error_message)
+    if PUSH_METHOD not in (None, ''):
+        push(error_message, PUSH_METHOD)
