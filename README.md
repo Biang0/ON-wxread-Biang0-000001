@@ -1,102 +1,125 @@
+# 📖 微信阅读自动化（wxread）  
 
-## 项目介绍 📚
+**本项目基于 [findmover/wxread](https://github.com/findmover/wxread) 进行优化和扩展。**  
+使用 **GitHub Actions** 自动执行 **微信阅读任务**，支持 **定时触发** 和 **手动触发**，可自由配置 **阅读时间** 和 **执行延迟**。  
 
-这个脚本主要是为了在微信读书的阅读**挑战赛中刷时长**和**保持天数**。由于本人偶尔看书时未能及时签到，导致入场费打了水漂。网上找了一些，发现高赞的自动阅读需要挂阅读器模拟或者用ADB模拟，实现一点也不优雅。因此，我决定编写一个自动化脚本。通过对官网接口的抓包和JS逆向分析实现。
+---
 
-该脚本具备以下功能：
+## 🚀 功能介绍  
 
-- **阅读时长调节**：默认计入排行榜和挑战赛，时长可调节，默认为60分钟。
-- **定时运行推送**：可部署在GitHub Action/服务器上，支持每天定时运行并推送结果到微信。
-- **Cookie自动更新**：脚本能自动获取并更新Cookie，一次部署后面无需其它操作。
-- **轻量化设计**：本脚本实现了轻量化的编写，部署服务器/GIthub action后到点运行，无需额外硬件。
+✅ **自动模式**：根据 **定时任务规则** 计算 **READ_NUM**，并 **随机延迟 0-20 分钟**（若手动触发但未设置自定义延迟，也会有随机延迟）。  
 
-***
-## 操作步骤（v5.0） 🛠️
+✅ **手动模式**：  
+   - **默认生成** `60-120`（等效 **30-60 分钟**）的随机阅读时间。  
+   - **支持自定义** `custom_time` 设定阅读时间，并计算 **READ_NUM = custom_time * 2**。  
 
-### 抓包准备
+✅ **自定义延迟**：手动触发时，可使用 `custom_delay` **手动设置任务执行的延迟时间**（单位：分钟）。  
 
-脚本逻辑还是比较简单的，`main.py`与`push.py`代码不需要改动。在微信阅读官网 [微信读书](https://weread.qq.com/) 搜索【三体】点开阅读点击下一页进行抓包，抓到`read`接口 `https://weread.qq.com/web/book/read`，如果返回格式正常（如：
+✅ **智能计算 READ_NUM**：
+   - **自动模式**：基于定时规则生成合适的阅读时间。  
+   - **手动模式**：支持 `custom_time` 设定阅读时长，或使用系统默认值。  
+   - **自定义 `custom_delay`** 控制任务启动时间。  
 
-```json
-{
-  "succ": 1,
-  "synckey": 564589834
-}
+---
+
+## ⏰ 触发方式  
+
+### 1️⃣ **自动触发（定时任务）**  
+
+- **定时任务触发时，READ_NUM 自动生成**，无需手动设置。  
+- **若手动触发但未设置 `custom_delay`**，则会 **随机延迟 0-20 分钟**，防止固定时间触发导致异常。  
+- **可使用 `custom_delay` 自定义具体延迟时间**，确保任务在指定时间运行。  
+
+---
+
+### 2️⃣ **手动触发（GitHub Actions 触发）**  
+
+可通过 **GitHub Actions** 手动触发阅读任务，并自由配置 **阅读时间** 和 **延迟**。  
+
+```yaml
+workflow_dispatch:
+  description: 手动触发微信阅读任务
+  inputs:
+    mode:
+      type: choice
+      description: |
+        选择运行模式：
+        - **自动**：按定时规则计算 `READ_NUM`，默认 `0-20` 分钟随机延迟（可自定义 `custom_time` 和 `custom_delay`）。
+        - **手动**：`READ_NUM` 默认为 `60-120`，可自定义 `custom_time`，默认无延迟（可自定义 `custom_delay`）。
+      required: true
+      default: '手动'
+      options:
+        - 自动
+        - 手动
+    custom_time:
+      type: string
+      description: |
+        - **自动模式**：若填写 `custom_time`，则 `READ_NUM = custom_time * 2`，默认 `0-20` 分钟随机延迟（可用 `custom_delay` 设定具体值）。
+        - **手动模式**：若填写 `custom_time`，则 `READ_NUM = custom_time * 2`，默认无延迟（可用 `custom_delay` 设定具体值）。
+      required: false
+    custom_delay:
+      type: string
+      description: |
+        - **自动模式**：若填写 `custom_delay`，覆盖 `0-20` 分钟的默认随机延迟，任务将在 `custom_delay` 分钟后执行。
+        - **手动模式**：若填写 `custom_delay`，任务将在 `custom_delay` 分钟后执行。
+      required: false
 ```
-右键复制为Bash格式。
 
-### 方法一： GitHub Action部署运行（GitHub运行）
+---
 
+## 📊 **示例**  
 
-- Fork这个仓库，在仓库 **Settings** -> 左侧列表中的 **Secrets and variables** -> **Actions**，然后在右侧的 **Repository secrets** 中添加如下值：
-  - `WXREAD_CURL_BASH`：上面抓read接口后转换为curl_bash的数据。
-  - `PUSH_METHOD`：推送方法，3选1推送方式（pushplus、wxpusher、telegram）。
-  - `PUSHPLUS_TOKEN` or `WXPUSHER_SPT` or `TELEGRAM_BOT_TOKEN`&`TELEGRAM_CHAT_ID`: 选择推送后填写对应token。
-  
-- 在 **Variables** 部分，最下方添加变量：
-  - `READ_NUM`：设定每次阅读的目标次数。
+### **自动模式**
+| `mode` | `custom_time` | `custom_delay` | 说明 |
+|--------|--------------|---------------|------|
+| 自动 | 未填写 | 未填写 | `READ_NUM` 由系统自动计算，**延迟 0-20 分钟** |
+| 自动 | `50` | 未填写 | `READ_NUM = 50 * 2 = 100`，**延迟 0-20 分钟** |
+| 自动 | 未填写 | `10` | `READ_NUM` 由系统自动计算，**延迟 10 分钟** |
+| 自动 | `50` | `10` | `READ_NUM = 50 * 2 = 100`，**延迟 10 分钟** |
 
+---
 
-- 基本释义：
+### **手动模式**
+| `mode` | `custom_time` | `custom_delay` | 说明 |
+|--------|--------------|---------------|------|
+| 手动 | 未填写 | 未填写 | `READ_NUM` 生成 `60-120`（即 **30-60 分钟**），**无延迟** |
+| 手动 | `40` | 未填写 | `READ_NUM = 40 * 2 = 80`，**无延迟** |
+| 手动 | 未填写 | `15` | `READ_NUM` 生成 `60-120`（即 **30-60 分钟**），**延迟 15 分钟** |
+| 手动 | `40` | `15` | `READ_NUM = 40 * 2 = 80`，**延迟 15 分钟** |
 
-| key                        | Value                               | 说明                                                         | 属性      |
-| ------------------------- | ---------------------------------- | ------------------------------------------------------------ | --------- |
-| `WXREAD_CURL_BASH`         | `read` 接口 `curl_bash`数据 | **必填**，必须提供有效指令                                   | secrets   |
-| `READ_NUM`                 | 阅读次数（每次 30 秒）              | **可选**，阅读时长，默认 60 分钟                           | variables |
-| `PUSH_METHOD`              | `pushplus`/`wxpusher`/`telegram`    | **可选**，推送方式，3选1，默认不推送                                       |    secrets     |
-| `PUSHPLUS_TOKEN`           | PushPlus 的 token                   | 当 `PUSH_METHOD=pushplus` 时必填，[获取地址](https://www.pushplus.plus/uc.html) | secrets   |
-| `WXPUSHER_SPT`             | WxPusher 的token                    | 当 `PUSH_METHOD=wxpusher` 时必填，[获取地址](https://wxpusher.zjiecode.com/docs/#/?id=获取spt) | secrets   |
-| `TELEGRAM_BOT_TOKEN`  <br>`TELEGRAM_CHAT_ID`   <br>`http_proxy`/`https_proxy`（可选）| 群组id以及机器人token                 | 当 `PUSH_METHOD=telegram` 时必填，[配置文档](https://www.nodeseek.com/post-22475-1) | secrets   |
+---
 
-**重要：除了READ_NUM配置在varables，其它的都配置在secrets里面的；需要推送`PUSH_METHOD`是必填的。**
+## 🔧 **环境变量（Secrets）**  
 
-### 视频教程
+**⚠️ 请在 GitHub Secrets 中配置 `WXREAD_CURL_BASH`，否则无法正常运行。**  
 
-[![视频教程](https://github.com/user-attachments/assets/ec144869-3dbb-40fe-9bc5-f8bf1b5fce3c)](https://www.bilibili.com/video/BV1kJ6gY3En3/ "点击查看视频")
+| 变量名 | 说明 | 必填 |
+|--------|------|------|
+| `WXREAD_CURL_BASH` | 微信阅读 API 的 curl_bash 数据 | ✅ |
+| `PUSH_METHOD` | 推送方式（pushplus / wxpusher / telegram） | ❌ |
+| `PUSHPLUS_TOKEN` | pushplus 推送 Token（若使用 pushplus） | ❌ |
+| `WXPUSHER_SPT` | wxpusher 推送 Token（若使用 wxpusher） | ❌ |
+| `TELEGRAM_BOT_TOKEN` | Telegram Bot Token（若使用 Telegram） | ❌ |
+| `TELEGRAM_CHAT_ID` | Telegram Chat ID（若使用 Telegram） | ❌ |
 
+---
 
-### 方法二： 服务器运行（docker部署）
+## 🚀 **执行流程**  
 
-- 在你的服务器上有Python运行环境即可，使用`cron`定义自动运行。
-- 或者通过docker运行，将抓到的bash命令在 [Convert](https://curlconverter.com/python/) 转化为Python字典格式，复制需要的headers与cookies即可（data不需要）。
+### **GitHub Actions 自动执行**  
+1. **定时任务** 会在设定时间自动触发，无需手动干预。  
+2. **手动模式** 可在 GitHub Actions 界面手动触发，并自由设定 `custom_time` 和 `custom_delay`。  
+3. **READ_NUM** 计算方式基于 **系统自动计算** 或 **用户自定义输入**。  
+4. **执行 `main.py`** 完成阅读任务。  
 
-steps1：克隆这个项目：`git clone https://github.com/findmover/wxread.git`<br>
-steps2：配置config.py里的headers、cookies、READ_NUM、PUSH_METHOD以及对应推送方式token<br>
-steps3：进入目录使用镜像构建容器：
-`docker rm -f wxread && docker build -t wxread . && docker run -d --name wxread -v $(pwd)/logs:/app/logs --restart always wxread`<br>
-steps4：测试：`docker exec -it wxread python /app/main.py`
+### **本地运行**  
+如需在本地运行，请手动执行：
+```bash
+python main.py
+```
 
-***
-## Attention 📢
+---
 
-1. **签到次数调整**：只需签到完成挑战赛可以将`num`次数从120调整为2，每次`num`为30秒，200即100分钟。
-   
-2. **解决阅读时间问题**：对于issue中提出的“阅读时间没有增加”，“增加时间与刷的时间不对等”建议保留`config.py`中的【data】字段，默认阅读三体，其它书籍自行测试。
+## 📜 许可证  
 
-3. **GitHub Action部署/本地部署**：主要配置config.py即可，Action部署使用环境变量，本地部署修改config.py里的阅读次数、headers、cookies即可。
-
-4. **推送**：pushplus推送偶尔出问题，猜测是GitHub action环境问题，增加重试机制。并增加wxpusher的极简推送方式。
-
-
-***
-## 字段解释 🔍
-
-| 字段 | 示例值 | 解释 |
-| --- | --- | --- |
-| `appId` | `"wbxxxxxxxxxxxxxxxxxxxxxxxx"` | 应用的唯一标识符。 |
-| `b` | `"ce032b305a9bc1ce0b0dd2a"` | 书籍或章节的唯一标识符。 |
-| `c` | `"0723244023c072b030ba601"` | 内容的唯一标识符，可能是页面或具体段落。 |
-| `ci` | `60` | 章节或部分的索引。 |
-| `co` | `336` | 内容的具体位置或页码。 |
-| `sm` | `"[插图]威慑纪元61年，执剑人在一棵巨树"` | 当前阅读的内容描述或摘要。 |
-| `pr` | `65` | 页码或段落索引。 |
-| `rt` | `88` | 阅读时长或阅读进度。 |
-| `ts` | `1727580815581` | 时间戳，表示请求发送的具体时间（毫秒级）。 |
-| `rn` | `114` | 随机数或请求编号，用于标识唯一的请求。 |
-| `sg` | `"bfdf7de2fe1673546ca079e2f02b79b937901ef789ed5ae16e7b43fb9e22e724"` | 安全签名，用于验证请求的合法性和完整性。 |
-| `ct` | `1727580815` | 时间戳，表示请求发送的具体时间（秒级）。 |
-| `ps` | `"xxxxxxxxxxxxxxxxxxxxxxxx"` | 用户标识符或会话标识符，用于追踪用户或会话。 |
-| `pc` | `"xxxxxxxxxxxxxxxxxxxxxxxx"` | 设备标识符或客户端标识符，用于标识用户的设备或客户端。 |
-| `s` | `"fadcb9de"` | 校验和或哈希值，用于验证请求数据的完整性。 |
-
-
+本项目采用 **MIT License** 开源，你可以自由修改和使用。**请遵守相关使用规则，不得用于非法用途。**
