@@ -74,9 +74,13 @@ jobs:
       if: (github.event.inputs.mode == '自动' && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.event.inputs.custom_delay == '')))
       run: |
         # 生成 0 到 20 之间的随机数作为延迟分钟数
-        DELAY=$((RANDOM % 21))
-        echo "⏳ 生成的随机延迟：${DELAY} 分钟"
-        sleep $((DELAY * 60))
+        DELAY_MINUTES=$((RANDOM % 21))
+        # 生成 0 到 59 之间的随机数作为延迟秒数
+        DELAY_SECONDS=$((RANDOM % 60))
+        # 计算总延迟秒数
+        TOTAL_DELAY=$((DELAY_MINUTES * 60 + DELAY_SECONDS))
+        echo "⏳ 生成的随机延迟：${DELAY_MINUTES} 分钟 ${DELAY_SECONDS} 秒"
+        sleep $TOTAL_DELAY
         echo "✅ 延迟执行完成"
 
     - name: ⏱️ 自定义延迟（手动触发）
