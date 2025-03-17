@@ -54,6 +54,8 @@ jobs:
   deploy:
     runs-on: ubuntu-22.04
     environment: AutoRead
+    outputs:
+      week_random_skipped: ${{ steps.week_random_check.outputs.skipped }}
 
     steps:
     - name: 🔧 设置 DNS
@@ -104,6 +106,7 @@ jobs:
         echo "✅ 延迟执行完成"
 
     - name: 🎲 周随机检查
+      id: week_random_check
       if: (github.event_name == 'schedule' && github.event.schedule == '0 0 * * sat,sun') || (github.event_name == 'workflow_dispatch' && github.event.inputs.debug_schedule == '周随机任务')
       run: |
         # 生成 0 到 6 之间的随机数
@@ -112,11 +115,15 @@ jobs:
         # 如果随机数不等于 0，则跳过周随机任务
         if [ $CHECK -ne 0 ]; then
           echo "⏭️ 跳过周随机任务"
+          echo "skipped=true" >> $GITHUB_OUTPUT
           exit 0
+        else
+          echo "🎉 触发周随机任务"
+          echo "skipped=false" >> $GITHUB_OUTPUT
         fi
-        echo "🎉 触发周随机任务"
 
     - name: 🔢 生成 READ_NUM
+      if: steps.week_random_check.outputs.skipped != 'true'
       run: |
         echo "::group::🔢 生成 READ_NUM"
         echo "=== 触发事件分析 ==="
@@ -242,6 +249,7 @@ jobs:
         echo "::endgroup::"
 
     - name: 🚀 执行主程序
+      if: steps.week_random_check.outputs.skipped != 'true'
       env:
         WXREAD_CURL_BASH: ${{ secrets.WXREAD_CURL_BASH }}
       run: |
