@@ -1,24 +1,19 @@
-name: wxread
+name: wxread  # 修改名称
 
-# 定义工作流的触发条件
 on:
-  # 定时任务触发条件
   schedule:
     - cron: '0 14 * * *'          # 晚间任务：每天22:00触发
-    - cron: '0 21 * * 0-4'        # 早间任务：周一到周五05:00触发
+    - cron: '0 21 * * 1-5'        # 早间任务：周一到周五05:00触发
     - cron: '40 3 * * 1-5'        # 午间任务：周一到周五11:40触发
     - cron: '0 9 * * sat,sun'     # 周末任务：周六和周日17:00触发
     - cron: '0 0 * * sat,sun'     # 周随机任务：周末08:00触发
-  # 手动触发条件
+
   workflow_dispatch:
     description: 手动触发微信阅读任务
     inputs:
       mode:
         type: choice
-        description: |
-          选择运行模式：
-          - 自动：自动模式，根据不同的定时任务规则，生成相应范围内的随机阅读时间。如果是手动触发且未设置自定义延迟，会有 0 - 20 分钟的随机延迟。
-          - 手动：手动模式，若未输入自定义阅读时间，会生成 60 - 120（等效 30 - 60 分钟）之间的随机阅读时间；若输入了自定义阅读时间，则使用该时间计算阅读次数。
+        description: 选择运行模式（自动/手动）
         required: true
         default: '手动'
         options:
@@ -26,11 +21,11 @@ on:
           - 手动
       custom_time:
         type: string
-        description: '手动输入自定义阅读时间（分钟，仅手动触发有效）。输入后，会将该时间乘以 2 作为 READ_NUM 用于后续任务。'
+        description: '自定义阅读时间（分钟，仅手动触发有效）'
         required: false
       custom_delay:
         type: string
-        description: '手动输入自定义延迟时间（分钟，仅手动触发有效）。输入后，任务会延迟相应的分钟数执行。'
+        description: '自定义延迟时间（分钟，仅手动触发有效）'
         required: false
 
 jobs:
@@ -41,9 +36,7 @@ jobs:
     steps:
     - name: 🔧 设置 DNS
       run: |
-        # 配置主 DNS 服务器为 Google 的公共 DNS
         echo "nameserver 8.8.8.8" | sudo tee /etc/resolv.conf
-        # 配置备用 DNS 服务器为 Google 的公共 DNS
         echo "nameserver 8.8.4.4" | sudo tee -a /etc/resolv.conf
         echo "✅ DNS 配置完成"
 
@@ -56,153 +49,54 @@ jobs:
         python-version: '3.10'
 
     - name: 📦 安装依赖
-  run: |
-    # 升级 pip
-    python -m pip install --upgrade pip
-    
-    # 安装依赖（使用 requirements.txt）
-    pip install --no-cache-dir --progress-bar pretty -r requirements.txt
-    
-    # 验证安装结果
-    pip list
-
-    - name: ⏱️ 随机延迟（自动模式或计划模式或手动触发 自动 无自定义延迟）
-      if: (github.event.inputs.mode == '自动' && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.event.inputs.custom_delay == '')))
       run: |
-        # 生成 0 到 20 之间的随机数作为延迟分钟数
-        DELAY=$((RANDOM % 21))
-        echo "⏳ 生成的随机延迟：${DELAY} 分钟"
+        python -m pip install --upgrade pip
+        pip install --no-cache-dir --progress-bar pretty -r requirements.txt
+        pip list  # 显示安装的依赖
+
+    - name: ⏱️ 计算延迟
+      run: |
+        if [[ "${{ github.event_name }}" == "workflow_dispatch" && -n "${{ github.event.inputs.custom_delay }}" ]]; then
+          DELAY=${{ github.event.inputs.custom_delay }}
+        else
+          DELAY=$((RANDOM % 21))  # 0 - 20 分钟随机延迟
+        fi
+        echo "⏳ 延迟 ${DELAY} 分钟..."
         sleep $((DELAY * 60))
         echo "✅ 延迟执行完成"
 
-    - name: ⏱️ 自定义延迟（手动触发）
-      if: github.event_name == 'workflow_dispatch' && github.event.inputs.custom_delay != ''
-      run: |
-        DELAY=${{ github.event.inputs.custom_delay }}
-        echo "⏳ 自定义延迟：${DELAY} 分钟"
-        sleep $((DELAY * 60))
-        echo "✅ 延迟执行完成"
-
-    - name: 🎲 周随机检查
+    - name: 🎲 处理周随机任务
       if: github.event_name == 'schedule' && github.event.schedule == '0 0 * * sat,sun'
       run: |
-        # 生成 0 到 6 之间的随机数
         CHECK=$((RANDOM % 7))
         echo "🎲 随机数：$CHECK (需要等于0)"
-        # 如果随机数不等于 0，则跳过周随机任务
         if [ $CHECK -ne 0 ]; then
           echo "⏭️ 跳过周随机任务"
           exit 0
         fi
         echo "🎉 触发周随机任务"
 
-    - name: 🔢 生成 READ_NUM
+    - name: 🔢 计算 READ_NUM
       run: |
-        echo "::group::🔢 生成 READ_NUM"
-        echo "=== 触发事件分析 ==="
-        echo "事件类型: ${{ github.event_name }}"
-        echo "输入模式: ${{ github.event.inputs.mode }}"
-        echo "定时规则: ${{ github.event.schedule }}"
-        echo "自定义时间: ${{ github.event.inputs.custom_time }}"
-        echo "自定义延迟: ${{ github.event.inputs.custom_delay }}"
+        case "${{ github.event.schedule }}" in
+          '0 21 * * 1-5') READ_NUM=$((RANDOM % 31 + 130));;  # 早间任务：130-160
+          '40 3 * * 1-5') READ_NUM=$((RANDOM % 31 + 160));;  # 午间任务：160-190
+          '0 14 * * *') READ_NUM=$((RANDOM % 31 + 190));;   # 晚间任务：190-220
+          '0 9 * * sat,sun') READ_NUM=$((RANDOM % 31 + 190));;  # 周末任务：190-220
+          '0 0 * * sat,sun') READ_NUM=$((RANDOM % 61 + 120));;  # 周随机任务：120-180
+          *) READ_NUM=$((RANDOM % 31 + 190));;  # 默认值
+        esac
 
-        if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-          # 手动触发时，使用自定义时间（如果存在）
-          if [[ -n "${{ github.event.inputs.custom_time }}" ]]; then
-            # 若用户手动输入了自定义阅读时间，则将其乘以 2 作为 READ_NUM
-            NUM=$(( ${{ github.event.inputs.custom_time }} * 2 ))
-            echo "🕹️ 手动触发 | 使用自定义时间: ${{ github.event.inputs.custom_time }} 分钟，等效 READ_NUM: $NUM"
-          else
-            # 手动触发但未提供自定义时间时，根据 mode 生成默认值
-            if [[ "${{ github.event.inputs.mode }}" == "手动" ]]; then
-              # 手动模式下，生成 60 到 120 之间的随机数作为 READ_NUM
-              # 该范围等效于 30 到 60 分钟的阅读时间
-              NUM=$((RANDOM % 61 + 60))
-              echo "🕹️ 手动模式 | 范围: 60-120 (30-60分钟)"
-            else
-              # 手动触发 自动 模式时，使用默认的 自动 范围
-              SCHEDULE="${{ github.event.schedule }}"
-              case "$SCHEDULE" in
-                '0 21 * * 1-5')
-                  # 早间任务（周一到周五 05:00 触发），生成 130 到 160 之间的随机数作为 READ_NUM
-                  NUM=$((RANDOM % 31 + 130))
-                  echo "🌅 早间任务 | 范围: 130-160"
-                  ;;
-                '40 3 * * 1-5')
-                  # 午间任务（周一到周五 11:40 触发），生成 160 到 190 之间的随机数作为 READ_NUM
-                  NUM=$((RANDOM % 31 + 160))
-                  echo "🌞 午间任务 | 范围: 160-190"
-                  ;;
-                '0 14 * * *')
-                  # 晚间任务（每天 22:00 触发），生成 190 到 220 之间的随机数作为 READ_NUM
-                  NUM=$((RANDOM % 31 + 190))
-                  echo "🌙 晚间任务 | 范围: 190-220"
-                  ;;
-                '0 9 * * sat,sun')
-                  # 周末任务（周六和周日 17:00 触发），生成 190 到 220 之间的随机数作为 READ_NUM
-                  NUM=$((RANDOM % 31 + 190))
-                  echo "🎉 周末任务 | 范围: 190-220"
-                  ;;
-                '0 0 * * sat,sun')
-                  # 周随机任务（周末 08:00 触发），生成 120 到 180 之间的随机数作为 READ_NUM
-                  NUM=$((RANDOM % 61 + 120))
-                  echo "🎰 周随机任务 | 范围: 120-180"
-                  ;;
-                *)
-                  # 未知触发类型，启用安全默认值，生成 190 到 220 之间的随机数作为 READ_NUM
-                  NUM=$((RANDOM % 31 + 190))
-                  echo "⚠️ 未知触发类型 | 启用安全默认值: 190-220"
-                  ;;
-              esac
-            fi
-          fi
-        else
-          # 自动触发（schedule）时，按原逻辑生成
-          SCHEDULE="${{ github.event.schedule }}"
-          case "$SCHEDULE" in
-            '0 21 * * 1-5')
-              # 早间任务（周一到周五 05:00 触发），生成 130 到 160 之间的随机数作为 READ_NUM
-              NUM=$((RANDOM % 31 + 130))
-              echo "🌅 早间任务 | 范围: 130-160"
-              ;;
-            '40 3 * * 1-5')
-              # 午间任务（周一到周五 11:40 触发），生成 160 到 190 之间的随机数作为 READ_NUM
-              NUM=$((RANDOM % 31 + 160))
-              echo "🌞 午间任务 | 范围: 160-190"
-              ;;
-            '0 14 * * *')
-              # 晚间任务（每天 22:00 触发），生成 190 到 220 之间的随机数作为 READ_NUM
-              NUM=$((RANDOM % 31 + 190))
-              echo "🌙 晚间任务 | 范围: 190-220"
-              ;;
-            '0 9 * * sat,sun')
-              # 周末任务（周六和周日 17:00 触发），生成 190 到 220 之间的随机数作为 READ_NUM
-              NUM=$((RANDOM % 31 + 190))
-              echo "🎉 周末任务 | 范围: 190-220"
-              ;;
-            '0 0 * * sat,sun')
-              # 周随机任务（周末 08:00 触发），生成 120 到 180 之间的随机数作为 READ_NUM
-              NUM=$((RANDOM % 61 + 120))
-              echo "🎰 周随机任务 | 范围: 120-180"
-              ;;
-            *)
-              # 未知触发类型，启用安全默认值，生成 190 到 220 之间的随机数作为 READ_NUM
-              NUM=$((RANDOM % 31 + 190))
-              echo "⚠️ 未知触发类型 | 启用安全默认值: 190-220"
-              ;;
-          esac
+        if [[ "${{ github.event_name }}" == "workflow_dispatch" && -n "${{ github.event.inputs.custom_time }}" ]]; then
+          READ_NUM=$(( ${{ github.event.inputs.custom_time }} * 2 ))
         fi
 
-        echo "✅ 最终 READ_NUM: $NUM (等效 $((NUM / 2)) 分钟)"
-        # 将 READ_NUM 写入环境变量
-        echo "READ_NUM=$NUM" >> $GITHUB_ENV
-        echo "::endgroup::"
+        echo "READ_NUM=$READ_NUM" >> $GITHUB_ENV
+        echo "✅ 计算完成 READ_NUM=$READ_NUM"
 
     - name: 🚀 执行主程序
       env:
         WXREAD_CURL_BASH: ${{ secrets.WXREAD_CURL_BASH }}
       run: |
-        echo "=== 执行参数 ==="
-        echo "READ_NUM: ${{ env.READ_NUM }}"
-        # 执行主程序
-        python main.py    
+        echo "执行参数 READ_NUM=${{ env.READ_NUM }}"
+        python main.py
