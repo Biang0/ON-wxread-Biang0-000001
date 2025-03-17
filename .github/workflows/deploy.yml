@@ -37,6 +37,18 @@ on:
         type: string
         description: '手动输入自定义延迟时间（分钟，仅手动触发有效）。输入后，任务会延迟相应的分钟数执行。'
         required: false
+      debug_schedule:
+        type: choice
+        description: '选择调试定时任务，开启后按指定任务时间运行'
+        required: false
+        default: '无'
+        options:
+          - 无
+          - 晚间任务
+          - 早间任务
+          - 午间任务
+          - 周末任务
+          - 周随机任务
 
 jobs:
   deploy:
@@ -92,7 +104,7 @@ jobs:
         echo "✅ 延迟执行完成"
 
     - name: 🎲 周随机检查
-      if: github.event_name == 'schedule' && github.event.schedule == '0 0 * * sat,sun'
+      if: (github.event_name == 'schedule' && github.event.schedule == '0 0 * * sat,sun') || (github.event_name == 'workflow_dispatch' && github.event.inputs.debug_schedule == '周随机任务')
       run: |
         # 生成 0 到 6 之间的随机数
         CHECK=$((RANDOM % 7))
@@ -113,8 +125,32 @@ jobs:
         echo "定时规则: ${{ github.event.schedule }}"
         echo "自定义时间: ${{ github.event.inputs.custom_time }}"
         echo "自定义延迟: ${{ github.event.inputs.custom_delay }}"
+        echo "调试定时任务: ${{ github.event.inputs.debug_schedule }}"
 
         if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+          # 手动触发时，处理调试定时任务
+          if [[ "${{ github.event.inputs.debug_schedule }}" != "无" ]]; then
+            case "${{ github.event.inputs.debug_schedule }}" in
+              晚间任务)
+                SCHEDULE='0 14 * * *'
+                ;;
+              早间任务)
+                SCHEDULE='0 21 * * 0-4'
+                ;;
+              午间任务)
+                SCHEDULE='40 3 * * 1-5'
+                ;;
+              周末任务)
+                SCHEDULE='0 9 * * sat,sun'
+                ;;
+              周随机任务)
+                SCHEDULE='0 0 * * sat,sun'
+                ;;
+            esac
+          else
+            SCHEDULE="${{ github.event.schedule }}"
+          fi
+
           # 手动触发时，使用自定义时间（如果存在）
           if [[ -n "${{ github.event.inputs.custom_time }}" ]]; then
             # 若用户手动输入了自定义阅读时间，则将其乘以 2 作为 READ_NUM
@@ -129,7 +165,6 @@ jobs:
               echo "🕹️ 手动模式 | 范围: 60-120 (30-60分钟)"
             else
               # 手动触发 自动 模式时，使用默认的 自动 范围
-              SCHEDULE="${{ github.event.schedule }}"
               case "$SCHEDULE" in
                 '0 21 * * 0-4')
                   # 早间任务（周一到周五 05:00 触发），生成 130 到 160 之间的随机数作为 READ_NUM
