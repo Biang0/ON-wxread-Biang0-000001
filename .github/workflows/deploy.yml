@@ -1,4 +1,4 @@
-name: wxread  # 修改名称
+name: wxread
 
 on:
   schedule:
@@ -51,7 +51,7 @@ jobs:
     - name: 📦 安装依赖
       run: |
         python -m pip install --upgrade pip
-        pip install --no-cache-dir --progress-bar pretty -r requirements.txt
+        pip install --no-cache-dir -r requirements.txt
         pip list  # 显示安装的依赖
 
     - name: ⏱️ 计算延迟
