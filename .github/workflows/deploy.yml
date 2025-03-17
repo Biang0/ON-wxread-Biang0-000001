@@ -4,11 +4,16 @@ name: wxread
 on:
   # 定时任务触发条件
   schedule:
-    - cron: '0 14 * * *'          # 晚间任务：每天22:00触发
-    - cron: '0 21 * * 0-4'        # 早间任务：周一到周五05:00触发
-    - cron: '40 3 * * 1-5'        # 午间任务：周一到周五11:40触发
-    - cron: '0 9 * * sat,sun'     # 周末任务：周六和周日17:00触发
-    - cron: '0 0 * * sat,sun'     # 周随机任务：周末08:00触发
+    # 晚间任务：北京时间每天 22:00 触发，转换为 UTC 时间是 14:00
+    - cron: '0 14 * * *'          # 北京时间：22:00，UTC 时间：14:00
+    # 早间任务：北京时间周一到周五 05:00 触发，转换为 UTC 时间是前一天的 21:00
+    - cron: '0 21 * * 0-4'        # 北京时间：05:00（周一到周五），UTC 时间：21:00（周日到周四）
+    # 午间任务：北京时间周一到周五 11:40 触发，转换为 UTC 时间是 03:40
+    - cron: '40 3 * * 1-5'        # 北京时间：11:40（周一到周五），UTC 时间：03:40（周一到周五）
+    # 周末任务：北京时间周六和周日 17:00 触发，转换为 UTC 时间是 09:00
+    - cron: '0 9 * * sat,sun'     # 北京时间：17:00（周六和周日），UTC 时间：09:00（周六和周日）
+    # 周随机任务：北京时间周末 08:00 触发，转换为 UTC 时间是前一天的 00:00
+    - cron: '0 0 * * sat,sun'     # 北京时间：08:00（周六和周日），UTC 时间：00:00（周五和周六）
   # 手动触发条件
   workflow_dispatch:
     description: 手动触发微信阅读任务
@@ -57,10 +62,13 @@ jobs:
 
     - name: 📦 安装依赖
       run: |
+        echo "::group::📦 安装依赖"
         python -m pip install --upgrade pip
         pip install --no-cache-dir -r requirements.txt
         pip list  # 显示安装的依赖
-
+        # 验证 requests 库是否安装成功
+        echo "✅ 依赖安装验证：$(pip list | grep requests)"
+        echo "::endgroup::"
 
     - name: ⏱️ 随机延迟（自动模式或计划模式或手动触发 自动 无自定义延迟）
       if: (github.event.inputs.mode == '自动' && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.event.inputs.custom_delay == '')))
