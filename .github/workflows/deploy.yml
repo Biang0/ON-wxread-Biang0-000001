@@ -245,11 +245,16 @@ jobs:
 
         echo "✅ 最终 READ_NUM: $NUM (等效 $((NUM / 2)) 分钟)"
         # 将 READ_NUM 写入环境变量
-        echo "READ_NUM=$NUM" >> $GITHUB_ENV
+        echo "READ_NUM=$NUM" >> $GITHUB_ENV  
         echo "::endgroup::"
 
+    - name: 📚 显示书籍信息
+      if: steps.week_random_check.outputs.skipped != 'true'  
+      run: |
+        python config.py | grep -E '📚 书籍映射表|📖 可用书籍 b 值|🎯 选定书籍'
+        
     - name: 🚀 执行主程序
-      if: steps.week_random_check.outputs.skipped != 'true'
+      if: steps.week_random_check.outputs.skipped != 'true'  
       env:
         WXREAD_CURL_BASH: ${{ secrets.WXREAD_CURL_BASH }}
       run: |
