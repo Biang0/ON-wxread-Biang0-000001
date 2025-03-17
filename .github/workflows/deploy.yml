@@ -85,7 +85,7 @@ jobs:
         echo "✅ 依赖安装验证：$(pip list | grep requests)"
 
     - name: ⏱️ 随机延迟（自动模式或计划模式或手动触发调试模式无自定义延迟）
-      if: (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.event.inputs.debug_schedule != '无' && github.event.inputs.custom_delay == ''))
+      if: (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && (github.event.inputs.mode == '自动' || github.event.inputs.debug_schedule != '无') && github.event.inputs.custom_delay == ''))
       run: |
         # 生成 0 到 20 之间的随机数作为延迟分钟数
         DELAY_MINUTES=$((RANDOM % 21))
