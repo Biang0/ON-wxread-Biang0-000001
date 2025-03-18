@@ -1,4 +1,4 @@
-name: Defect number  
+name: Defect number  
 
 # 定义工作流的触发条件
 on:
@@ -255,9 +255,9 @@ jobs:
         cat book_info.txt
 
     - name: 🚀 执行主程序
-      if: steps.week_random_check.outputs.skipped != 'true'  
+      if: steps.week_random_check.outputs.skipped != 'true'
       env:
-        WXREAD_CURL_BASH: ${{ secrets.WXREAD_CURL_BASH }}  
+        WXREAD_CURL_BASH: ${{ secrets.WXREAD_CURL_BASH }}
         PUSH_METHOD: ${{ secrets.PUSH_METHOD }}
         PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
         WXPUSHER_SPT: ${{ secrets.WXPUSHER_SPT }}
