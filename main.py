@@ -52,6 +52,8 @@ def get_wr_skey():
             return cookie.split('=')[-1][:8]
     return None
 
+# 在主函数执行前打印推送方式
+print(f"📤 推送方式: {PUSH_METHOD}")
 
 def main():
     # 获取选定书籍，并更新请求数据中的 b 值
