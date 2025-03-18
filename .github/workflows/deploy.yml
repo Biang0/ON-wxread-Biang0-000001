@@ -1,4 +1,4 @@
-name: Defect number  
+name: Test number  
 
 # 定义工作流的触发条件
 on:
