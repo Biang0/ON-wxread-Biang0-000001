@@ -1,4 +1,4 @@
-name: wxread
+name: Old WeChat
 
 # 定义工作流的触发条件
 on:
@@ -65,7 +65,6 @@ jobs:
         # 配置备用 DNS 服务器为 Google 的公共 DNS
         echo "nameserver 8.8.4.4" | sudo tee -a /etc/resolv.conf
         echo "✅ DNS 配置完成"
-
     - name: 📥 检出仓库
       uses: actions/checkout@v4
 
@@ -83,7 +82,6 @@ jobs:
         echo "::endgroup::"
         # 验证 requests 库是否安装成功
         echo "✅ 依赖安装验证：$(pip list | grep requests)"
-
     - name: ⏱️ 随机延迟（自动模式或计划模式或手动触发调试模式无自定义延迟）
       if: (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && (github.event.inputs.mode == '自动' || github.event.inputs.debug_schedule != '无') && github.event.inputs.custom_delay == ''))
       run: |
@@ -96,7 +94,6 @@ jobs:
         echo "⏳ 生成的随机延迟：${DELAY_MINUTES} 分钟 ${DELAY_SECONDS} 秒"
         sleep $TOTAL_DELAY
         echo "✅ 延迟执行完成"
-
     - name: ⏱️ 自定义延迟（手动触发）
       if: github.event_name == 'workflow_dispatch' && github.event.inputs.custom_delay != ''
       run: |
@@ -104,7 +101,6 @@ jobs:
         echo "⏳ 自定义延迟：${DELAY} 分钟"
         sleep $((DELAY * 60))
         echo "✅ 延迟执行完成"
-
     - name: 🎲 周随机检查
       id: week_random_check
       if: (github.event_name == 'schedule' && github.event.schedule == '0 0 * * sat,sun') || (github.event_name == 'workflow_dispatch' && github.event.inputs.debug_schedule == '周随机任务')
@@ -121,12 +117,6 @@ jobs:
           echo "🎉 触发周随机任务"
           echo "skipped=false" >> $GITHUB_OUTPUT
         fi
-
-    - name: 📚 显示书籍信息
-      if: steps.week_random_check.outputs.skipped != 'true'
-      run: |
-        python config.py | grep -E '📚 书籍映射表|📖 可用书籍 b 值|🎯 选定书籍'
-
     - name: 🔢 生成 READ_NUM
       if: steps.week_random_check.outputs.skipped != 'true'
       run: |
@@ -138,7 +128,6 @@ jobs:
         echo "自定义时间: ${{ github.event.inputs.custom_time }}"
         echo "自定义延迟: ${{ github.event.inputs.custom_delay }}"
         echo "调试定时任务: ${{ github.event.inputs.debug_schedule }}"
-
         if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
           # 手动触发时，处理调试定时任务
           if [[ "${{ github.event.inputs.debug_schedule }}" != "无" ]]; then
@@ -162,7 +151,6 @@ jobs:
           else
             SCHEDULE="${{ github.event.schedule }}"
           fi
-
           # 手动触发时，使用自定义时间（如果存在）
           if [[ -n "${{ github.event.inputs.custom_time }}" ]]; then
             # 若用户手动输入了自定义阅读时间，则将其乘以 2 作为 READ_NUM
@@ -247,18 +235,28 @@ jobs:
               ;;
           esac
         fi
-
         echo "✅ 最终 READ_NUM: $NUM (等效 $((NUM / 2)) 分钟)"
         # 将 READ_NUM 写入环境变量
         echo "READ_NUM=$NUM" >> $GITHUB_ENV
         echo "::endgroup::"
-
+    - name: 📚 显示书籍信息
+      if: steps.week_random_check.outputs.skipped != 'true'
+      run: |
+        python config.py | grep -E '📚 书籍映射表|📖 可用书籍 b 值|🎯 选定书籍'
     - name: 🚀 执行主程序
       if: steps.week_random_check.outputs.skipped != 'true'
       env:
         WXREAD_CURL_BASH: ${{ secrets.WXREAD_CURL_BASH }}
+        PUSH_METHOD: ${{ secrets.PUSH_METHOD }}
+        PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
+        WXPUSHER_SPT: ${{ secrets.WXPUSHER_SPT }}
+        TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        READ_NUM: ${{ env.READ_NUM }}
+        READ_COMPLETE_HEADER: ${{ secrets.READ_COMPLETE_HEADER }}  # 读取 GitHub Secrets 里的变量
       run: |
         echo "=== 执行参数 ==="
         echo "READ_NUM: ${{ env.READ_NUM }}"
-        # 执行主程序，将 READ_NUM 作为参数传递
-        python main.py ${{ env.READ_NUM }}    
+        echo "READ_COMPLETE_HEADER: ${{ env.READ_COMPLETE_HEADER }}"
+        # 执行主程序
+        python main.py || { echo "❌ 主程序执行失败"; exit 1; }    
