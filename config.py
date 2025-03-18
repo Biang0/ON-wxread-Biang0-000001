@@ -92,7 +92,7 @@ def convert(curl_command):
 default_headers = {
     "accept": "application/json, text/plain, */*",
     "accept-language": "zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6,ko;q=0.5",
-    "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 Edg/131.0.0.0"
+    "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 Edg/131.0.0.0",
 }
 
 default_cookies = {
@@ -109,11 +109,8 @@ default_cookies = {
 HEADERS, COOKIES = convert(curl_str) if curl_str else (default_headers, default_cookies)
 
 # =================== 输出信息 ===================
-print("📚 书籍映射表:")
-for b_value, title in book_mapping.items():
-    print(f"  {b_value}: {title}")
+print(f"📚 书籍映射表: {json.dumps(book_mapping, ensure_ascii=False, indent=2)}")
 print(f"📖 可用书籍 b 值: {b_values}")
 print(f"🎯 选定书籍: {book_mapping.get(random_b_value, '未知书籍')} (b值: {random_b_value})")
 print(f"📑 读取次数: {READ_NUM}")
 print(f"📤 推送方式: {PUSH_METHOD}")
-    

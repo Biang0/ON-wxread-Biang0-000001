@@ -7,7 +7,8 @@ import hashlib
 import requests
 import urllib.parse
 import os  # 读取环境变量
-from config import get_book_info, REQUEST_DATA, HEADERS, COOKIES, PUSH_METHOD, READ_NUM, book_mapping, b_values
+from config import get_book_info, REQUEST_DATA, HEADERS, COOKIES, PUSH_METHOD, READ_NUM
+from push import push
 
 # 配置日志
 logging.basicConfig(
@@ -53,12 +54,8 @@ def get_wr_skey():
 
 
 def main():
-    # 输出书籍映射表、可用书籍 b 值和选定书籍信息
-    print(f"📚 书籍映射表: {json.dumps(book_mapping, ensure_ascii=False, indent=2)}")
-    print(f"📖 可用书籍 b 值: {b_values}")
+    # 获取选定书籍，并更新请求数据中的 b 值
     selected_book, selected_b = get_book_info()
-    print(f"🎯 选定书籍: {selected_book} (b值: {selected_b})")
-
     REQUEST_DATA["b"] = selected_b
 
     logger.info(f"🎯 选定书籍: {selected_book} (b值: {selected_b})")
