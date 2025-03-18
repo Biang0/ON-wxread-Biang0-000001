@@ -242,7 +242,8 @@ jobs:
     - name: 📚 显示书籍信息
       if: steps.week_random_check.outputs.skipped != 'true'
       run: |
-        python config.py | grep -E '📚 书籍映射表|📖 可用书籍 b 值|🎯 选定书籍'
+        python config.py | grep -E '📚 书籍映射表|📖 可用书籍 b 值|🎯 选定书籍' > book_info.txt
+        cat book_info.txt
     - name: 🚀 执行主程序
       if: steps.week_random_check.outputs.skipped != 'true'
       env:
