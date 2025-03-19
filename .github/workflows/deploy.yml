@@ -265,3 +265,10 @@ jobs:
         echo "READ_COMPLETE_HEADER: ${{ env.READ_COMPLETE_HEADER }}"
         # 执行主程序
         python main.py || { echo "❌ 主程序执行失败"; exit 1; }
+
+    - name: 📤 上传日志文件
+      if: always()  # 无论任务成功或失败都上传日志
+      uses: actions/upload-artifact@v4
+      with:
+        name: run_data_log
+        path: run_data.log
