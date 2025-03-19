@@ -6,4 +6,3 @@ __pycache__/
 logs/
 *.log
 !run_data.log
-!run_data.log
