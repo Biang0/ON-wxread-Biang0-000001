@@ -210,7 +210,7 @@ jobs:
         echo "READ_NUM=$NUM" >> $GITHUB_ENV
         echo "::endgroup::"
 
-    - name: 🚀 执行主程序
+     - name: 🚀 执行主程序
       if: steps.week_random_check.outputs.skipped != 'true'
       env:
         WXREAD_CURL_BASH: ${{ secrets.WXREAD_CURL_BASH }}
@@ -227,17 +227,12 @@ jobs:
         echo "READ_COMPLETE_HEADER: ${{ env.READ_COMPLETE_HEADER }}"
         python main.py || { echo "❌ 主程序执行失败"; exit 1; }
 
-    - name: 📤 提交并推送 run_data.log
-      if: always()  # 无论成功或失败都提交
+ - name: 📤 提交并推送 run_data.log
+      if: always()
       run: |
-        # 配置 Git
         git config --global user.name "github-actions[bot]"
         git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-        # 确保不忽略 run_data.log
-        echo "!run_data.log" >> .gitignore
-
-        # 提交并推送
-        git add run_data.log .gitignore
+        git add run_data.log
         git commit -m "Update run_data.log [skip ci]" || echo "No changes to commit"
         git push
