@@ -58,7 +58,7 @@ def get_wr_skey():
     return None
 
 
-#def main():
+def main():
     # 获取选定书籍，并更新请求数据中的 b 值
     selected_book, selected_b = get_book_info()
     REQUEST_DATA["b"] = selected_b
