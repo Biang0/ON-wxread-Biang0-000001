@@ -1,6 +1,0 @@
-try:
-    with open("run_data.log", "a") as file:
-        file.write("测试写入 run_data.log\n")
-    print("✅ 测试写入成功")
-except Exception as e:
-    print(f"❌ 记录运行数据失败: {str(e)}")
