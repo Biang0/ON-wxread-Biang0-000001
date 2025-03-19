@@ -1,20 +1,12 @@
 name: Test number
 
-# 定义工作流的触发条件
 on:
-  # 定时任务触发条件
   schedule:
-    # 晚间任务：北京时间每天 22:00 触发，转换为 UTC 时间是 14:00
-    - cron: '0 14 * * *'          # 北京时间：22:00，UTC 时间：14:00
-    # 早间任务：北京时间周一到周五 05:00 触发，转换为 UTC 时间是前一天的 21:00
-    - cron: '0 21 * * 0-4'        # 北京时间：05:00（周一到周五），UTC 时间：21:00（周日到周四）
-    # 午间任务：北京时间周一到周五 11:40 触发，转换为 UTC 时间是 03:40
-    - cron: '40 3 * * 1-5'        # 北京时间：11:40（周一到周五），UTC 时间：03:40（周一到周五）
-    # 周末任务：北京时间周六和周日 17:00 触发，转换为 UTC 时间是 09:00
-    - cron: '0 9 * * sat,sun'     # 北京时间：17:00（周六和周日），UTC 时间：09:00（周六和周日）
-    # 周随机任务：北京时间周末 08:00 触发，转换为 UTC 时间是前一天的 00:00
-    - cron: '0 0 * * sat,sun'     # 北京时间：08:00（周六和周日），UTC 时间：00:00（周五和周六）
-  # 手动触发条件
+    - cron: '0 14 * * *'       # 每天北京时间 22:00（UTC 14:00）
+    - cron: '0 21 * * 0-4'     # 周一到周五北京时间 05:00（UTC 前一天 21:00）
+    - cron: '40 3 * * 1-5'     # 周一到周五北京时间 11:40（UTC 03:40）
+    - cron: '0 9 * * sat,sun'  # 周六、周日北京时间 17:00（UTC 09:00）
+    - cron: '0 0 * * sat,sun'  # 周末北京时间 08:00（UTC 前一天 00:00）
   workflow_dispatch:
     description: 手动触发微信阅读任务
     inputs:
@@ -53,21 +45,19 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-22.04
-    environment: AutoRead
-    outputs:
-      week_random_skipped: ${{ steps.week_random_check.outputs.skipped }}
 
     steps:
     - name: 🔧 设置 DNS
       run: |
-        # 配置主 DNS 服务器为 Google 的公共 DNS
         echo "nameserver 8.8.8.8" | sudo tee /etc/resolv.conf
-        # 配置备用 DNS 服务器为 Google 的公共 DNS
         echo "nameserver 8.8.4.4" | sudo tee -a /etc/resolv.conf
         echo "✅ DNS 配置完成"
 
     - name: 📥 检出仓库
       uses: actions/checkout@v4
+      with:
+        # 要能推送回仓库，需要 fetch-depth=0
+        fetch-depth: 0
 
     - name: 🐍 设置 Python 3.10
       uses: actions/setup-python@v5
@@ -79,19 +69,15 @@ jobs:
         echo "::group::📦 安装依赖"
         python -m pip install --upgrade pip
         pip install --no-cache-dir -r requirements.txt
-        pip list  # 显示安装的依赖
+        pip list
         echo "::endgroup::"
-        # 验证 requests 库是否安装成功
         echo "✅ 依赖安装验证：$(pip list | grep requests)"
 
     - name: ⏱️ 随机延迟（自动模式或计划模式或手动触发调试模式无自定义延迟）
       if: (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && (github.event.inputs.mode == '自动' || github.event.inputs.debug_schedule != '无') && github.event.inputs.custom_delay == ''))
       run: |
-        # 生成 0 到 20 之间的随机数作为延迟分钟数
         DELAY_MINUTES=$((RANDOM % 21))
-        # 生成 0 到 59 之间的随机数作为延迟秒数
         DELAY_SECONDS=$((RANDOM % 60))
-        # 计算总延迟秒数
         TOTAL_DELAY=$((DELAY_MINUTES * 60 + DELAY_SECONDS))
         echo "⏳ 生成的随机延迟：${DELAY_MINUTES} 分钟 ${DELAY_SECONDS} 秒"
         sleep $TOTAL_DELAY
@@ -109,10 +95,8 @@ jobs:
       id: week_random_check
       if: (github.event_name == 'schedule' && github.event.schedule == '0 0 * * sat,sun') || (github.event_name == 'workflow_dispatch' && github.event.inputs.debug_schedule == '周随机任务')
       run: |
-        # 生成 0 到 6 之间的随机数
         CHECK=$((RANDOM % 7))
         echo "🎲 随机数：$CHECK (需要等于0)"
-        # 如果随机数不等于 0，则跳过周随机任务
         if [ $CHECK -ne 0 ]; then
           echo "⏭️ 跳过周随机任务"
           echo "skipped=true" >> $GITHUB_OUTPUT
@@ -126,7 +110,6 @@ jobs:
       if: steps.week_random_check.outputs.skipped != 'true'
       run: |
         echo "::group::🔢 生成 READ_NUM"
-        echo "=== 触发事件分析 ==="
         echo "事件类型: ${{ github.event_name }}"
         echo "输入模式: ${{ github.event.inputs.mode }}"
         echo "定时规则: ${{ github.event.schedule }}"
@@ -135,7 +118,6 @@ jobs:
         echo "调试定时任务: ${{ github.event.inputs.debug_schedule }}"
 
         if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-          # 手动触发时，处理调试定时任务
           if [[ "${{ github.event.inputs.debug_schedule }}" != "无" ]]; then
             case "${{ github.event.inputs.debug_schedule }}" in
               晚间任务)
@@ -158,48 +140,36 @@ jobs:
             SCHEDULE="${{ github.event.schedule }}"
           fi
 
-          # 手动触发时，使用自定义时间（如果存在）
           if [[ -n "${{ github.event.inputs.custom_time }}" ]]; then
-            # 若用户手动输入了自定义阅读时间，则将其乘以 2 作为 READ_NUM
             NUM=$(( ${{ github.event.inputs.custom_time }} * 2 ))
             echo "🕹️ 手动触发 | 使用自定义时间: ${{ github.event.inputs.custom_time }} 分钟，等效 READ_NUM: $NUM"
           else
-            # 手动触发但未提供自定义时间时，根据 mode 生成默认值
             if [[ "${{ github.event.inputs.mode }}" == "手动" ]]; then
-              # 手动模式下，生成 60 到 120 之间的随机数作为 READ_NUM
-              # 该范围等效于 30 到 60 分钟的阅读时间
               NUM=$((RANDOM % 61 + 60))
               echo "🕹️ 手动模式 | 范围: 60-120 (30-60分钟)"
             else
-              # 手动触发 自动 模式时，使用默认的 自动 范围
               case "$SCHEDULE" in
                 '0 21 * * 0-4')
-                  # 早间任务（周一到周五 05:00 触发），生成 130 到 160 之间的随机数作为 READ_NUM
                   NUM=$((RANDOM % 31 + 130))
                   echo "🌅 早间任务 | 范围: 130-160"
                   ;;
                 '40 3 * * 1-5')
-                  # 午间任务（周一到周五 11:40 触发），生成 160 到 190 之间的随机数作为 READ_NUM
                   NUM=$((RANDOM % 31 + 160))
                   echo "🌞 午间任务 | 范围: 160-190"
                   ;;
                 '0 14 * * *')
-                  # 晚间任务（每天 22:00 触发），生成 190 到 220 之间的随机数作为 READ_NUM
                   NUM=$((RANDOM % 31 + 190))
                   echo "🌙 晚间任务 | 范围: 190-220"
                   ;;
                 '0 9 * * sat,sun')
-                  # 周末任务（周六和周日 17:00 触发），生成 190 到 220 之间的随机数作为 READ_NUM
                   NUM=$((RANDOM % 31 + 190))
                   echo "🎉 周末任务 | 范围: 190-220"
                   ;;
                 '0 0 * * sat,sun')
-                  # 周随机任务（周末 08:00 触发），生成 120 到 180 之间的随机数作为 READ_NUM
                   NUM=$((RANDOM % 61 + 120))
                   echo "🎰 周随机任务 | 范围: 120-180"
                   ;;
                 *)
-                  # 未知触发类型，启用安全默认值，生成 190 到 220 之间的随机数作为 READ_NUM
                   NUM=$((RANDOM % 31 + 190))
                   echo "⚠️ 未知触发类型 | 启用安全默认值: 190-220"
                   ;;
@@ -207,36 +177,29 @@ jobs:
             fi
           fi
         else
-          # 自动触发（schedule）时，按原逻辑生成
           SCHEDULE="${{ github.event.schedule }}"
           case "$SCHEDULE" in
             '0 21 * * 0-4')
-              # 早间任务（周一到周五 05:00 触发），生成 130 到 160 之间的随机数作为 READ_NUM
               NUM=$((RANDOM % 31 + 130))
               echo "🌅 早间任务 | 范围: 130-160"
               ;;
             '40 3 * * 1-5')
-              # 午间任务（周一到周五 11:40 触发），生成 160 到 190 之间的随机数作为 READ_NUM
               NUM=$((RANDOM % 31 + 160))
               echo "🌞 午间任务 | 范围: 160-190"
               ;;
             '0 14 * * *')
-              # 晚间任务（每天 22:00 触发），生成 190 到 220 之间的随机数作为 READ_NUM
               NUM=$((RANDOM % 31 + 190))
               echo "🌙 晚间任务 | 范围: 190-220"
               ;;
             '0 9 * * sat,sun')
-              # 周末任务（周六和周日 17:00 触发），生成 190 到 220 之间的随机数作为 READ_NUM
               NUM=$((RANDOM % 31 + 190))
               echo "🎉 周末任务 | 范围: 190-220"
               ;;
             '0 0 * * sat,sun')
-              # 周随机任务（周末 08:00 触发），生成 120 到 180 之间的随机数作为 READ_NUM
               NUM=$((RANDOM % 61 + 120))
               echo "🎰 周随机任务 | 范围: 120-180"
               ;;
             *)
-              # 未知触发类型，启用安全默认值，生成 190 到 220 之间的随机数作为 READ_NUM
               NUM=$((RANDOM % 31 + 190))
               echo "⚠️ 未知触发类型 | 启用安全默认值: 190-220"
               ;;
@@ -244,7 +207,6 @@ jobs:
         fi
 
         echo "✅ 最终 READ_NUM: $NUM (等效 $((NUM / 2)) 分钟)"
-        # 将 READ_NUM 写入环境变量
         echo "READ_NUM=$NUM" >> $GITHUB_ENV
         echo "::endgroup::"
 
@@ -258,21 +220,24 @@ jobs:
         TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
         TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         READ_NUM: ${{ env.READ_NUM }}
-        READ_COMPLETE_HEADER: ${{ secrets.READ_COMPLETE_HEADER }}  # 读取 GitHub Secrets 里的变量
+        READ_COMPLETE_HEADER: ${{ secrets.READ_COMPLETE_HEADER }}
       run: |
         echo "=== 执行参数 ==="
         echo "READ_NUM: ${{ env.READ_NUM }}"
         echo "READ_COMPLETE_HEADER: ${{ env.READ_COMPLETE_HEADER }}"
-        # 执行主程序
         python main.py || { echo "❌ 主程序执行失败"; exit 1; }
 
-    - name: 📝 显示 run_data.log 内容
-      if: always()
-      run: cat run_data.log || echo "⚠️ run_data.log not found"
+    - name: 📤 提交并推送 run_data.log
+      if: always()  # 无论成功或失败都提交
+      run: |
+        # 配置 Git
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-    - name: 📤 上传日志文件
-      if: always()  # 无论任务成功或失败都上传日志
-      uses: actions/upload-artifact@v4
-      with:
-        name: run_data_log
-        path: run_data.log
+        # 确保不忽略 run_data.log
+        echo "!run_data.log" >> .gitignore
+
+        # 提交并推送
+        git add run_data.log .gitignore
+        git commit -m "Update run_data.log [skip ci]" || echo "No changes to commit"
+        git push
