@@ -24,6 +24,11 @@ RENEW_URL = "https://weread.qq.com/web/login/renewal"
 KEY = "your_secret_key_here"  # 请在此处配置你的密钥
 
 
+def get_beijing_time():
+    """获取北京时间"""
+    return time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time() + 8 * 3600))
+
+
 def encode_data(params: dict) -> str:
     """对参数进行 URL 编码"""
     return "&".join([f"{k}={urllib.parse.quote(str(v), safe='')}" for k, v in sorted(params.items())])
@@ -117,7 +122,7 @@ def main():
                 f"{READ_COMPLETE_HEADER}\n\n"
                 f"📚 书籍：《{selected_book}》\n"
                 f"⏱️ 阅读时长：{total_read_time:.1f} 分钟\n"
-                f"📅 完成时间：{time.strftime('%Y-%m-%d %H:%M:%S')}"
+                f"📅 完成时间：{get_beijing_time()}"
             )
             push(message, PUSH_METHOD)
             logger.info(f"✅ 推送成功: {READ_COMPLETE_HEADER}")
@@ -128,7 +133,7 @@ def main():
     log_path = "run_data.log"
     try:
         with open(log_path, "a", encoding="utf-8") as file:
-            file.write(f"运行时间: {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
+            file.write(f"运行时间: {get_beijing_time()}\n")
             file.write(f"选定书籍: 《{selected_book}》\n")
             file.write(f"阅读时长: {total_read_time:.1f} 分钟\n")
             file.write("-" * 50 + "\n")
