@@ -2,6 +2,7 @@
 __pycache__/
 *.pyc
 
-# Log files
+# 忽略所有 .log 文件，但保留 run_data.log
 logs/
 *.log
+!run_data.log
