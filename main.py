@@ -125,15 +125,17 @@ def main():
             logger.error(f"❌ 推送失败: {str(e)}")
 
     # 记录运行数据到文件
+    log_path = "run_data.log"
     try:
-        with open("run_data.log", "a") as file:
+        with open(log_path, "a", encoding="utf-8") as file:
             file.write(f"运行时间: {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
             file.write(f"选定书籍: 《{selected_book}》\n")
             file.write(f"阅读时长: {total_read_time:.1f} 分钟\n")
             file.write("-" * 50 + "\n")
-        logger.info("✅ 运行数据已记录到 run_data.log")
+        logger.info(f"✅ 运行数据已记录到 {log_path}")
     except Exception as e:
         logger.error(f"❌ 记录运行数据失败: {str(e)}")
+        raise
 
 
 if __name__ == "__main__":
