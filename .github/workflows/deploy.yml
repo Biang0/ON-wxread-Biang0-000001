@@ -235,48 +235,22 @@ jobs:
         echo "READ_COMPLETE_HEADER: ${{ env.READ_COMPLETE_HEADER }}"
         python main.py || { echo "❌ 主程序执行失败"; exit 1; }
 
-    - name: 🕒 转换 run_data.log 时间为北京时间
+
+    - name: 🗑️ 每周日清理日志
+      if: github.event.schedule == '0 9 * * sun'
       run: |
-        if [ -f run_data.log ]; then
-          echo "正在转换 run_data.log 时间为北京时间..."
+          > run_data.log
+          echo "✅ run_data.log 已清空"
 
-          # 读取 log，转换 UTC -> 北京时间
-          cat run_data.log | while read line; do
-            # 提取日期时间部分 (假设格式类似 "2025-03-17 14:00:00 UTC - xxx")
-            UTC_TIME=$(echo "$line" | grep -oE "[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}")
-            
-            if [[ ! -z "$UTC_TIME" ]]; then
-              # 将 UTC 转换为时间戳
-              TIMESTAMP=$(date -d "$UTC_TIME UTC" +%s)
-              
-              # 时间戳 + 8 小时 转换为北京时间
-              BEIJING_TIME=$(date -d "@$((TIMESTAMP + 8 * 3600))" "+%Y-%m-%d %H:%M:%S")
-              
-              # 替换日志内容中的 UTC 时间
-              line=$(echo "$line" | sed "s/$UTC_TIME UTC/$BEIJING_TIME 北京时间/")
-            fi
-            
-            echo "$line" >> temp.log
-          done
-
-          mv temp.log run_data.log
-          echo "✅ 时间转换完成"
-        else
-          echo "⚠️ run_data.log 文件不存在，跳过转换"
-        fi
-
-    - name: 🗑️ 每周日最后一次任务后清空 run_data.log
-      if: github.event.schedule == '0 9 * * sun'  # UTC 09:00 = 北京时间 17:00
+    - name: 📤 提交 run_data.log
       run: |
-        echo "🗑️ 清空 run_data.log（周日最后一次任务后）"
-        > run_data.log  # 清空文件内容
-        echo "✅ run_data.log 已清空"
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-    - name: 📤 提交并推送 run_data.log
-      if: always()
-      run: |
-        git config --global user.name "github-actions[bot]"
-        git config --global user.email "github-actions[bot]@users.noreply.github.com"
-
-        # 只提交有变更的文件，避免 Git 报错
-        git diff --quiet run_data.log || (git add run_data.log && git commit -m "Update run_data.log [skip ci]" && git push)
+          if git diff --quiet run_data.log; then
+            echo "✅ 无变更，跳过提交"
+          else
+            git add run_data.log
+            git commit -m "Update run_data.log [skip ci]"
+            git push
+          fi
