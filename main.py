@@ -63,7 +63,7 @@ def main():
     selected_book, selected_b = get_book_info()
     REQUEST_DATA["b"] = selected_b
 
-    #logger.info(f"🎯 选定书籍: {selected_book} (b值: {selected_b})")
+    logger.info(f"🎯 选定书籍: {selected_book} (b值: {selected_b})")
     total_read_time = 0.0
     index = 1
 
