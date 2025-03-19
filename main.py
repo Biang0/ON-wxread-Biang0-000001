@@ -122,7 +122,18 @@ def main():
             push(message, PUSH_METHOD)
             logger.info(f"✅ 推送成功: {READ_COMPLETE_HEADER}")
         except Exception as e:
-            logger.error(f"❌ 推送失败: {str(e)}")
+            logger.error(f"❌ 推送失败: {str(e)}")  
+
+    # 记录运行数据到文件
+    try:
+        with open("run_data.log", "a") as file:
+            file.write(f"运行时间: {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
+            file.write(f"选定书籍: 《{selected_book}》\n")
+            file.write(f"阅读时长: {total_read_time:.1f} 分钟\n")
+            file.write("-" * 50 + "\n")
+        logger.info("✅ 运行数据已记录到 run_data.log")
+    except Exception as e:
+        logger.error(f"❌ 记录运行数据失败: {str(e)}")
 
 
 if __name__ == "__main__":
