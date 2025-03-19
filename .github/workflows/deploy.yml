@@ -234,22 +234,30 @@ jobs:
         echo "READ_NUM: ${{ env.READ_NUM }}"
         echo "READ_COMPLETE_HEADER: ${{ env.READ_COMPLETE_HEADER }}"
         python main.py || { echo "❌ 主程序执行失败"; exit 1; }
-
     - name: 🕒 转换 run_data.log 时间为北京时间
       run: |
         if [ -f run_data.log ]; then
           echo "正在转换 run_data.log 时间为北京时间..."
-          awk '{
-            match($0, /([0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}) UTC/, time);
-            if (time[1] != "") {
-              split(time[1], datetime, "[-: ]");
-              timestamp = mktime(datetime[1] " " datetime[2] " " datetime[3] " " datetime[4] " " datetime[5] " " datetime[6]);
-              timestamp += 8 * 3600;  # 转换为北京时间
-              new_time = strftime("%Y-%m-%d %H:%M:%S", timestamp) " 北京时间";
-              gsub(time[1] " UTC", new_time, $0);
+
+          # 方式 1: sed 直接替换 UTC 为北京时间
+          sed -i -E "s/([0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}) UTC/\1 北京时间/g" run_data.log
+
+          # 方式 2: awk 逐行转换时间
+          awk '
+          function utc_to_beijing(utc_time) {
+            gsub(/[-:]/, " ", utc_time);
+            return strftime("%Y-%m-%d %H:%M:%S", mktime(utc_time) + 8 * 3600);
+          }
+          {
+            match($0, /([0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}) UTC/, arr);
+            if (arr[1] != "") {
+              beijing_time = utc_to_beijing(arr[1]);
+              gsub(arr[1], beijing_time);
+              gsub(" UTC", " 北京时间");
             }
             print $0;
           }' run_data.log > temp.log && mv temp.log run_data.log
+
           echo "✅ 时间转换完成"
         else
           echo "⚠️ run_data.log 文件不存在，跳过转换"
