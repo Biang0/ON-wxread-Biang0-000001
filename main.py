@@ -61,9 +61,9 @@ def get_wr_skey():
 def main():
     try:
         # 获取书籍信息并格式化日志
-        selected_book, selected_b = get_book_info()
+        selected_book, selected_b, book_mapping = get_book_info()  # 假设 get_book_info 返回映射表
         logger.info("书籍映射表：")
-        logger.info(json.dumps(get_book_info.get_book_mapping(), indent=2, ensure_ascii=False))
+        logger.info(json.dumps(book_mapping, indent=2, ensure_ascii=False))
         
         REQUEST_DATA["b"] = selected_b
         logger.info(f"🎯 选定书籍: {selected_book} (b值: {selected_b})")
