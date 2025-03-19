@@ -122,7 +122,7 @@ def main():
             push(message, PUSH_METHOD)
             logger.info(f"✅ 推送成功: {READ_COMPLETE_HEADER}")
         except Exception as e:
-            logger.error(f"❌ 推送失败: {str(e)}")  
+            logger.error(f"❌ 推送失败: {str(e)}")
 
     # 记录运行数据到文件
     try:
