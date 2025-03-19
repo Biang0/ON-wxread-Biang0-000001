@@ -235,7 +235,7 @@ jobs:
         echo "READ_COMPLETE_HEADER: ${{ env.READ_COMPLETE_HEADER }}"
         python main.py || { echo "❌ 主程序执行失败"; exit 1; }
 
-- name: 🕒 转换 run_data.log 时间为北京时间
+    - name: 🕒 转换 run_data.log 时间为北京时间
       run: |
         if [ -f run_data.log ]; then
           echo "正在转换 run_data.log 时间为北京时间..."
