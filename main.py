@@ -130,13 +130,14 @@ def main():
             logger.error(f"❌ 推送失败: {str(e)}")
 
     # 记录运行数据到文件
-    log_path = "run_data.log"
+    log_path = "log.md"  # 修改日志路径和格式
     try:
         with open(log_path, "a", encoding="utf-8") as file:
-            file.write(f"运行时间: {get_beijing_time()}\n")
-            file.write(f"选定书籍: 《{selected_book}》\n")
-            file.write(f"阅读时长: {total_read_time:.1f} 分钟\n")
-            file.write("-" * 50 + "\n")
+            file.write(f"## 运行记录\n")
+            file.write(f"### 运行时间: {get_beijing_time()}\n")
+            file.write(f"- **选定书籍**: 《{selected_book}》\n")
+            file.write(f"- **阅读时长**: {total_read_time:.1f} 分钟\n")
+            file.write(f"{'---' * 10}\n")  # Markdown 分隔线
         logger.info(f"✅ 运行数据已记录到 {log_path}")
     except Exception as e:
         logger.error(f"❌ 记录运行数据失败: {str(e)}")
