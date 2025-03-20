@@ -239,18 +239,18 @@ jobs:
     - name: 🗑️ 每周日清理日志
       if: github.event.schedule == '0 9 * * sun'
       run: |
-          > run_data.log
-          echo "✅ run_data.log 已清空"
+          > log.md  # 修改此处
+          echo "✅ log.md 已清空"
 
-    - name: 📤 提交 run_data.log
+    - name: 📤 提交 log.md
       run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-          if git diff --quiet run_data.log; then
+          if git diff --quiet log.md; then  # 修改此处
             echo "✅ 无变更，跳过提交"
           else
-            git add run_data.log
-            git commit -m "Update run_data.log [skip ci]"
+            git add log.md  # 修改此处
+            git commit -m "Update log.md [skip ci]"  # 修改提交信息
             git push
           fi
