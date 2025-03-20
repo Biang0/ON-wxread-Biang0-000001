@@ -54,7 +54,7 @@ jobs:
   deploy:
     runs-on: ubuntu-22.04
     permissions:
-      contents: write  # 显式设置权限，可根据需要调整
+      contents: write  # 关键权限声明
 
     steps:
     - name: 🔧 设置 DNS
@@ -66,7 +66,6 @@ jobs:
     - name: 📥 检出仓库
       uses: actions/checkout@v4
       with:
-        # 要能推送回仓库，需要 fetch-depth=0
         fetch-depth: 0
 
     - name: 🐍 设置 Python 3.10
@@ -237,6 +236,7 @@ jobs:
         echo "READ_COMPLETE_HEADER: ${{ env.READ_COMPLETE_HEADER }}"
         python main.py || { echo "❌ 主程序执行失败"; exit 1; }
 
+
     - name: 🗑️ 每周日清理日志
       if: github.event.schedule == '0 9 * * sun'
       run: |
@@ -249,9 +249,6 @@ jobs:
           git config --global user.name ${{ secrets.USER_NAME }}
           git config --global user.email ${{ secrets.USER_EMAIL }}
           
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-
           if git diff --quiet log.md; then
             echo "✅ 无变更，跳过提交"
           else
