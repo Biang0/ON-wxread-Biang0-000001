@@ -53,6 +53,8 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-22.04
+    permissions:
+      contents: write  # 显式设置权限
 
     steps:
     - name: 🔧 设置 DNS
@@ -64,7 +66,6 @@ jobs:
     - name: 📥 检出仓库
       uses: actions/checkout@v4
       with:
-        # 要能推送回仓库，需要 fetch-depth=0
         fetch-depth: 0
 
     - name: 🐍 设置 Python 3.10
@@ -239,18 +240,21 @@ jobs:
     - name: 🗑️ 每周日清理日志
       if: github.event.schedule == '0 9 * * sun'
       run: |
-          > log.md  # 修改此处
-          echo "✅ log.md 已清空"
+          > run_data.log
+          echo "✅ run_data.log 已清空"
 
-    - name: 📤 提交 log.md
+    - name: 📤 提交 run_data.log
       run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-
-          if git diff --quiet log.md; then  # 修改此处
+          # 使用加密的 GitHub Secrets 配置用户信息
+          git config --global user.name ${{ secrets.USER_NAME }}
+          git config --global user.email ${{ secrets.USER_EMAIL }}
+          
+          # 检查文件变更
+          if git diff --quiet run_data.log; then
             echo "✅ 无变更，跳过提交"
           else
-            git add log.md  # 修改此处
-            git commit -m "Update log.md [skip ci]"  # 修改提交信息
+            git add run_data.log
+            git commit -m "Update run_data.log [skip ci] - $(date '+%Y%m%d-%H%M%S')"
             git push
+            echo "✅ 变更已提交"
           fi
