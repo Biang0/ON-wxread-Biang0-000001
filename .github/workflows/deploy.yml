@@ -1,4 +1,4 @@
-name: Test number  
+name: Integrated Tasks with Weekly Log Cleanup
 
 on:
   # 定时任务触发条件
@@ -13,10 +13,11 @@ on:
     - cron: '0 9 * * sat,sun'
     # 周随机任务：北京时间周末 08:00（UTC 前一天 00:00）
     - cron: '0 0 * * sat,sun'
-
+    # 每周日北京时间 24 点（即周一 00:00，对应 UTC 时间周日 16:00）清理日志
+    - cron: '0 16 * * sun'
   # 手动触发条件
   workflow_dispatch:
-    description: 手动触发微信阅读任务
+    description: 手动触发微信阅读任务或日志清理任务
     inputs:
       mode:
         type: choice
@@ -49,6 +50,10 @@ on:
           - 午间任务
           - 周末任务
           - 周随机任务
+      clean_log_manually:
+        type: boolean
+        description: '是否手动触发日志清理任务'
+        default: false
 
 jobs:
   deploy:
@@ -239,21 +244,24 @@ jobs:
         python main.py || { echo "❌ 主程序执行失败"; exit 1; }
 
     - name: 🗑️ 每周日清理日志
-      if: github.event.schedule == '0 9 * * sun'
+      if: (github.event_name == 'schedule' && github.event.schedule == '0 16 * * sun') || (github.event_name == 'workflow_dispatch' && github.event.inputs.clean_log_manually == true)
       run: |
-          > log.md
-          echo "✅ log.md 已清空"
+        echo "🧹 开始清理 log.md 文件，让它恢复干净整洁！"
+        > log.md
+        echo "🎉 log.md 文件已成功清空，仿佛焕然一新！"
 
     - name: 📤 提交 log.md
       run: |
-          # 使用加密的 GitHub Secrets 配置用户信息
-          git config --global user.name ${{ secrets.USER_NAME }}
-          git config --global user.email ${{ secrets.USER_EMAIL }}
-          
-          if git diff --quiet log.md; then
-            echo "✅ 无变更，跳过提交"
-          else
-            git add log.md
-            git commit -m "Update log.md [skip ci]"
-            git push
-          fi
+        # 使用加密的 GitHub Secrets 配置用户信息
+        git config --global user.name ${{ secrets.USER_NAME }}
+        git config --global user.email ${{ secrets.USER_EMAIL }}
+        
+        if git diff --quiet log.md; then
+          echo "✅ 检查发现 log.md 没有变更，无需提交啦。"
+        else
+          echo "📝 log.md 有更新，准备提交到仓库。"
+          git add log.md
+          git commit -m "Weekly log cleanup: Empty log.md"
+          git push
+          echo "🎉 log.md 提交成功，仓库已更新！"
+        fi    
