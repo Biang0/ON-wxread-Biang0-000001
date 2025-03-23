@@ -29,7 +29,7 @@ jobs:
     - name: 📤 提交 log.md
       run: |
         # 使用加密的 GitHub Secrets 配置用户信息
-        git config --global user.name ${{ secrets.USER_NAME }}
+        git config --global user.name ${{ secrets.USER_NAME }}  
         git config --global user.email ${{ secrets.USER_EMAIL }}  
         
         if git diff --quiet log.md; then
@@ -40,4 +40,4 @@ jobs:
           git commit -m "Weekly log cleanup: Empty log.md"
           git push
           echo "🎉 log.md 提交成功，仓库已更新！"
-        fi    
+        fi  
