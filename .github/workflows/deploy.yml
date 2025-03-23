@@ -1,4 +1,4 @@
-name: Integrated Tasks with Weekly Log Cleanup
+name: Test number  
 
 on:
   # 定时任务触发条件
@@ -13,11 +13,10 @@ on:
     - cron: '0 9 * * sat,sun'
     # 周随机任务：北京时间周末 08:00（UTC 前一天 00:00）
     - cron: '0 0 * * sat,sun'
-    # 每周日北京时间 24 点（即周一 00:00，对应 UTC 时间周日 16:00）清理日志
-    - cron: '0 16 * * sun'
+
   # 手动触发条件
   workflow_dispatch:
-    description: 手动触发微信阅读任务或日志清理任务
+    description: 手动触发微信阅读任务
     inputs:
       mode:
         type: choice
@@ -50,10 +49,7 @@ on:
           - 午间任务
           - 周末任务
           - 周随机任务
-      clean_log_manually:
-        type: boolean
-        description: '是否手动触发日志清理任务'
-        default: false
+
 
 jobs:
   deploy:
@@ -62,207 +58,197 @@ jobs:
       contents: write  # 关键权限声明
 
     steps:
-    - name: 🔧 设置 DNS
-      run: |
-        echo "nameserver 8.8.8.8" | sudo tee /etc/resolv.conf
-        echo "nameserver 8.8.4.4" | sudo tee -a /etc/resolv.conf
-        echo "✅ DNS 配置完成"
+      - name: 🔧 设置 DNS
+        run: |
+          echo "nameserver 8.8.8.8" | sudo tee /etc/resolv.conf
+          echo "nameserver 8.8.4.4" | sudo tee -a /etc/resolv.conf
+          echo "✅ DNS 配置完成"
 
-    - name: 📥 检出仓库
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
+      - name: 📥 检出仓库
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-    - name: 🐍 设置 Python 3.10
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.10'
+      - name: 🐍 设置 Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
 
-    - name: 📦 安装依赖
-      run: |
-        echo "::group::📦 安装依赖"
-        python -m pip install --upgrade pip
-        pip install --no-cache-dir -r requirements.txt
-        pip list
-        echo "::endgroup::"
-        echo "✅ 依赖安装验证：$(pip list | grep requests)"
+      - name: 📦 安装依赖
+        run: |
+          echo "::group::📦 安装依赖"
+          python -m pip install --upgrade pip
+          pip install --no-cache-dir -r requirements.txt
+          pip list
+          echo "::endgroup::"
+          echo "✅ 依赖安装验证：$(pip list | grep requests)"
 
-    - name: ⏱️ 随机延迟（自动模式或计划模式或手动触发调试模式无自定义延迟）
-      if: (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && (github.event.inputs.mode == '自动' || github.event.inputs.debug_schedule != '无') && github.event.inputs.custom_delay == ''))
-      run: |
-        DELAY_MINUTES=$((RANDOM % 21))
-        DELAY_SECONDS=$((RANDOM % 60))
-        TOTAL_DELAY=$((DELAY_MINUTES * 60 + DELAY_SECONDS))
-        echo "⏳ 生成的随机延迟：${DELAY_MINUTES} 分钟 ${DELAY_SECONDS} 秒"
-        sleep $TOTAL_DELAY
-        echo "✅ 延迟执行完成"
+      - name: ⏱️ 随机延迟（自动模式或计划模式或手动触发调试模式无自定义延迟）
+        if: (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && (github.event.inputs.mode == '自动' || github.event.inputs.debug_schedule != '无') && github.event.inputs.custom_delay == ''))
+        run: |
+          DELAY_MINUTES=$((RANDOM % 21))
+          DELAY_SECONDS=$((RANDOM % 60))
+          TOTAL_DELAY=$((DELAY_MINUTES * 60 + DELAY_SECONDS))
+          echo "⏳ 生成的随机延迟：${DELAY_MINUTES} 分钟 ${DELAY_SECONDS} 秒"
+          sleep $TOTAL_DELAY
+          echo "✅ 延迟执行完成"
 
-    - name: ⏱️ 自定义延迟（手动触发）
-      if: github.event_name == 'workflow_dispatch' && github.event.inputs.custom_delay != ''
-      run: |
-        DELAY=${{ github.event.inputs.custom_delay }}
-        echo "⏳ 自定义延迟：${DELAY} 分钟"
-        sleep $((DELAY * 60))
-        echo "✅ 延迟执行完成"
+      - name: ⏱️ 自定义延迟（手动触发）
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.custom_delay != ''
+        run: |
+          DELAY=${{ github.event.inputs.custom_delay }}
+          echo "⏳ 自定义延迟：${DELAY} 分钟"
+          sleep $((DELAY * 60))
+          echo "✅ 延迟执行完成"
 
-    - name: 🎲 周随机检查
-      id: week_random_check
-      if: (github.event_name == 'schedule' && github.event.schedule == '0 0 * * sat,sun') || (github.event_name == 'workflow_dispatch' && github.event.inputs.debug_schedule == '周随机任务')
-      run: |
-        CHECK=$((RANDOM % 7))
-        echo "🎲 随机数：$CHECK (需要等于0)"
-        if [ $CHECK -ne 0 ]; then
-          echo "⏭️ 跳过周随机任务"
-          echo "skipped=true" >> $GITHUB_OUTPUT
-          exit 0
-        else
-          echo "🎉 触发周随机任务"
-          echo "skipped=false" >> $GITHUB_OUTPUT
-        fi
-
-    - name: 🔢 生成 READ_NUM
-      if: steps.week_random_check.outputs.skipped != 'true'
-      run: |
-        BEIJING_TIME=$(date -u -d '+8 hours' +'%Y-%m-%d %H:%M:%S')
-        echo "当前北京时间: $BEIJING_TIME - 开始生成 READ_NUM"
-        echo "::group::🔢 生成 READ_NUM"
-        echo "事件类型: ${{ github.event_name }}"
-        echo "输入模式: ${{ github.event.inputs.mode }}"
-        echo "定时规则: ${{ github.event.schedule }}"
-        echo "自定义时间: ${{ github.event.inputs.custom_time }}"
-        echo "自定义延迟: ${{ github.event.inputs.custom_delay }}"
-        echo "调试定时任务: ${{ github.event.inputs.debug_schedule }}"
-
-        if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-          if [[ "${{ github.event.inputs.debug_schedule }}" != "无" ]]; then
-            case "${{ github.event.inputs.debug_schedule }}" in
-              晚间任务)
-                SCHEDULE='0 14 * * *'
-                ;;
-              早间任务)
-                SCHEDULE='0 21 * * 0-4'
-                ;;
-              午间任务)
-                SCHEDULE='40 3 * * 1-5'
-                ;;
-              周末任务)
-                SCHEDULE='0 9 * * sat,sun'
-                ;;
-              周随机任务)
-                SCHEDULE='0 0 * * sat,sun'
-                ;;
-            esac
+      - name: 🎲 周随机检查
+        id: week_random_check
+        if: (github.event_name == 'schedule' && github.event.schedule == '0 0 * * sat,sun') || (github.event_name == 'workflow_dispatch' && github.event.inputs.debug_schedule == '周随机任务')
+        run: |
+          CHECK=$((RANDOM % 7))
+          echo "🎲 随机数：$CHECK (需要等于0)"
+          if [ $CHECK -ne 0 ]; then
+            echo "⏭️ 跳过周随机任务"
+            echo "skipped=true" >> $GITHUB_OUTPUT
+            exit 0
           else
-            SCHEDULE="${{ github.event.schedule }}"
+            echo "🎉 触发周随机任务"
+            echo "skipped=false" >> $GITHUB_OUTPUT
           fi
 
-          if [[ -n "${{ github.event.inputs.custom_time }}" ]]; then
-            NUM=$(( ${{ github.event.inputs.custom_time }} * 2 ))
-            echo "🕹️ 手动触发 | 使用自定义时间: ${{ github.event.inputs.custom_time }} 分钟，等效 READ_NUM: $NUM"
-          else
-            if [[ "${{ github.event.inputs.mode }}" == "手动" ]]; then
-              NUM=$((RANDOM % 61 + 60))
-              echo "🕹️ 手动模式 | 范围: 60-120 (30-60分钟)"
-            else
-              case "$SCHEDULE" in
-                '0 21 * * 0-4')
-                  NUM=$((RANDOM % 31 + 130))
-                  echo "🌅 早间任务 | 范围: 130-160"
+      - name: 🔢 生成 READ_NUM
+        if: steps.week_random_check.outputs.skipped != 'true'
+        run: |
+          BEIJING_TIME=$(date -u -d '+8 hours' +'%Y-%m-%d %H:%M:%S')
+          echo "当前北京时间: $BEIJING_TIME - 开始生成 READ_NUM"
+          echo "::group::🔢 生成 READ_NUM"
+          echo "事件类型: ${{ github.event_name }}"
+          echo "输入模式: ${{ github.event.inputs.mode }}"
+          echo "定时规则: ${{ github.event.schedule }}"
+          echo "自定义时间: ${{ github.event.inputs.custom_time }}"
+          echo "自定义延迟: ${{ github.event.inputs.custom_delay }}"
+          echo "调试定时任务: ${{ github.event.inputs.debug_schedule }}"
+
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            if [[ "${{ github.event.inputs.debug_schedule }}" != "无" ]]; then
+              case "${{ github.event.inputs.debug_schedule }}" in
+                晚间任务)
+                  SCHEDULE='0 14 * * *'
                   ;;
-                '40 3 * * 1-5')
-                  NUM=$((RANDOM % 31 + 160))
-                  echo "🌞 午间任务 | 范围: 160-190"
+                早间任务)
+                  SCHEDULE='0 21 * * 0-4'
                   ;;
-                '0 14 * * *')
-                  NUM=$((RANDOM % 31 + 190))
-                  echo "🌙 晚间任务 | 范围: 190-220"
+                午间任务)
+                  SCHEDULE='40 3 * * 1-5'
                   ;;
-                '0 9 * * sat,sun')
-                  NUM=$((RANDOM % 31 + 190))
-                  echo "🎉 周末任务 | 范围: 190-220"
+                周末任务)
+                  SCHEDULE='0 9 * * sat,sun'
                   ;;
-                '0 0 * * sat,sun')
-                  NUM=$((RANDOM % 61 + 120))
-                  echo "🎰 周随机任务 | 范围: 120-180"
-                  ;;
-                *)
-                  NUM=$((RANDOM % 31 + 190))
-                  echo "⚠️ 未知触发类型 | 启用安全默认值: 190-220"
+                周随机任务)
+                  SCHEDULE='0 0 * * sat,sun'
                   ;;
               esac
+            else
+              SCHEDULE="${{ github.event.schedule }}"
             fi
+
+            if [[ -n "${{ github.event.inputs.custom_time }}" ]]; then
+              NUM=$(( ${{ github.event.inputs.custom_time }} * 2 ))
+              echo "🕹️ 手动触发 | 使用自定义时间: ${{ github.event.inputs.custom_time }} 分钟，等效 READ_NUM: $NUM"
+            else
+              if [[ "${{ github.event.inputs.mode }}" == "手动" ]]; then
+                NUM=$((RANDOM % 61 + 60))
+                echo "🕹️ 手动模式 | 范围: 60-120 (30-60分钟)"
+              else
+                case "$SCHEDULE" in
+                  '0 21 * * 0-4')
+                    NUM=$((RANDOM % 31 + 130))
+                    echo "🌅 早间任务 | 范围: 130-160"
+                    ;;
+                  '40 3 * * 1-5')
+                    NUM=$((RANDOM % 31 + 160))
+                    echo "🌞 午间任务 | 范围: 160-190"
+                    ;;
+                  '0 14 * * *')
+                    NUM=$((RANDOM % 31 + 190))
+                    echo "🌙 晚间任务 | 范围: 190-220"
+                    ;;
+                  '0 9 * * sat,sun')
+                    NUM=$((RANDOM % 31 + 190))
+                    echo "🎉 周末任务 | 范围: 190-220"
+                    ;;
+                  '0 0 * * sat,sun')
+                    NUM=$((RANDOM % 61 + 120))
+                    echo "🎰 周随机任务 | 范围: 120-180"
+                    ;;
+                  *)
+                    NUM=$((RANDOM % 31 + 190))
+                    echo "⚠️ 未知触发类型 | 启用安全默认值: 190-220"
+                    ;;
+                esac
+              fi
+            fi
+          else
+            SCHEDULE="${{ github.event.schedule }}"
+            case "$SCHEDULE" in
+              '0 21 * * 0-4')
+                NUM=$((RANDOM % 31 + 130))
+                echo "🌅 早间任务 | 范围: 130-160"
+                ;;
+              '40 3 * * 1-5')
+                NUM=$((RANDOM % 31 + 160))
+                echo "🌞 午间任务 | 范围: 160-190"
+                ;;
+              '0 14 * * *')
+                NUM=$((RANDOM % 31 + 190))
+                echo "🌙 晚间任务 | 范围: 190-220"
+                ;;
+              '0 9 * * sat,sun')
+                NUM=$((RANDOM % 31 + 190))
+                echo "🎉 周末任务 | 范围: 190-220"
+                ;;
+              '0 0 * * sat,sun')
+                NUM=$((RANDOM % 61 + 120))
+                echo "🎰 周随机任务 | 范围: 120-180"
+                ;;
+              *)
+                NUM=$((RANDOM % 31 + 190))
+                echo "⚠️ 未知触发类型 | 启用安全默认值: 190-220"
+                ;;
+            esac
           fi
-        else
-          SCHEDULE="${{ github.event.schedule }}"
-          case "$SCHEDULE" in
-            '0 21 * * 0-4')
-              NUM=$((RANDOM % 31 + 130))
-              echo "🌅 早间任务 | 范围: 130-160"
-              ;;
-            '40 3 * * 1-5')
-              NUM=$((RANDOM % 31 + 160))
-              echo "🌞 午间任务 | 范围: 160-190"
-              ;;
-            '0 14 * * *')
-              NUM=$((RANDOM % 31 + 190))
-              echo "🌙 晚间任务 | 范围: 190-220"
-              ;;
-            '0 9 * * sat,sun')
-              NUM=$((RANDOM % 31 + 190))
-              echo "🎉 周末任务 | 范围: 190-220"
-              ;;
-            '0 0 * * sat,sun')
-              NUM=$((RANDOM % 61 + 120))
-              echo "🎰 周随机任务 | 范围: 120-180"
-              ;;
-            *)
-              NUM=$((RANDOM % 31 + 190))
-              echo "⚠️ 未知触发类型 | 启用安全默认值: 190-220"
-              ;;
-          esac
-        fi
 
-        echo "✅ 最终 READ_NUM: $NUM (等效 $((NUM / 2)) 分钟)"
-        echo "READ_NUM=$NUM" >> $GITHUB_ENV
-        echo "::endgroup::"
+          echo "✅ 最终 READ_NUM: $NUM (等效 $((NUM / 2)) 分钟)"
+          echo "READ_NUM=$NUM" >> $GITHUB_ENV
+          echo "::endgroup::"
 
-    - name: 🚀 执行主程序
-      if: steps.week_random_check.outputs.skipped != 'true'
-      env:
-        WXREAD_CURL_BASH: ${{ secrets.WXREAD_CURL_BASH }}
-        PUSH_METHOD: ${{ secrets.PUSH_METHOD }}
-        PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
-        WXPUSHER_SPT: ${{ secrets.WXPUSHER_SPT }}
-        TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-        TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        READ_NUM: ${{ env.READ_NUM }}
-        READ_COMPLETE_HEADER: ${{ secrets.READ_COMPLETE_HEADER }}
-      run: |
-        echo "=== 执行参数 ==="
-        echo "READ_NUM: ${{ env.READ_NUM }}"
-        echo "READ_COMPLETE_HEADER: ${{ env.READ_COMPLETE_HEADER }}"
-        python main.py || { echo "❌ 主程序执行失败"; exit 1; }
+      - name: 🚀 执行主程序
+        if: steps.week_random_check.outputs.skipped != 'true'
+        env:
+          WXREAD_CURL_BASH: ${{ secrets.WXREAD_CURL_BASH }}
+          PUSH_METHOD: ${{ secrets.PUSH_METHOD }}
+          PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
+          WXPUSHER_SPT: ${{ secrets.WXPUSHER_SPT }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          READ_NUM: ${{ env.READ_NUM }}
+          READ_COMPLETE_HEADER: ${{ secrets.READ_COMPLETE_HEADER }}
+        run: |
+          echo "=== 执行参数 ==="
+          echo "READ_NUM: ${{ env.READ_NUM }}"
+          echo "READ_COMPLETE_HEADER: ${{ env.READ_COMPLETE_HEADER }}"
+          python main.py || { echo "❌ 主程序执行失败"; exit 1; }
 
-    - name: 🗑️ 手动强制触发清理日志
-      if: github.event_name == 'workflow_dispatch' && github.event.inputs.clean_log_manually == true
-      run: |
-        echo "🧹 手动强制开始清理 log.md 文件，让它恢复干净整洁！"
-        > log.md
-        echo "🎉 log.md 文件已成功清空，仿佛焕然一新！"
-
-    - name: 📤 提交 log.md
-      if: github.event_name == 'workflow_dispatch' && github.event.inputs.clean_log_manually == true || github.event.schedule == '0 16 * * sun'
-      run: |
-        # 使用加密的 GitHub Secrets 配置用户信息
-        git config --global user.name ${{ secrets.USER_NAME }}
-        git config --global user.email ${{ secrets.USER_EMAIL }}
-        
-        if git diff --quiet log.md; then
-          echo "✅ 检查发现 log.md 没有变更，无需提交啦。"
-        else
-          echo "📝 log.md 有更新，准备提交到仓库。"
-          git add log.md
-          git commit -m "Weekly log cleanup: Empty log.md"
-          git push
-          echo "🎉 log.md 提交成功，仓库已更新！"
-        fi    
+      - name: 📤 提交 log.md
+        run: |
+          # 使用加密的 GitHub Secrets 配置用户信息
+          git config --global user.name ${{ secrets.USER_NAME }}
+          git config --global user.email ${{ secrets.USER_EMAIL }}
+          
+          if git diff --quiet log.md; then
+            echo "✅ 无变更，跳过提交"
+          else
+            git add log.md
+            git commit -m "Update log.md [skip ci]"
+            git push
+          fi    
