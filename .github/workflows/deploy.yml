@@ -243,14 +243,15 @@ jobs:
         echo "READ_COMPLETE_HEADER: ${{ env.READ_COMPLETE_HEADER }}"
         python main.py || { echo "❌ 主程序执行失败"; exit 1; }
 
-    - name: 🗑️ 每周日清理日志
-      if: (github.event_name == 'schedule' && github.event.schedule == '0 16 * * sun') || (github.event_name == 'workflow_dispatch' && github.event.inputs.clean_log_manually == true)
+    - name: 🗑️ 手动强制触发清理日志
+      if: github.event_name == 'workflow_dispatch' && github.event.inputs.clean_log_manually == true
       run: |
-        echo "🧹 开始清理 log.md 文件，让它恢复干净整洁！"
+        echo "🧹 手动强制开始清理 log.md 文件，让它恢复干净整洁！"
         > log.md
         echo "🎉 log.md 文件已成功清空，仿佛焕然一新！"
 
     - name: 📤 提交 log.md
+      if: github.event_name == 'workflow_dispatch' && github.event.inputs.clean_log_manually == true || github.event.schedule == '0 16 * * sun'
       run: |
         # 使用加密的 GitHub Secrets 配置用户信息
         git config --global user.name ${{ secrets.USER_NAME }}
