@@ -1,9 +1,9 @@
 name: Weekly Log Cleanup
 
 on:
-  # 定时任务触发条件，每周日 UTC 时间 09:00 执行（对应北京时间 17:00）
+  # 定时任务触发条件，每周日北京时间 24 点（即周一 00:00，对应 UTC 时间周日 16:00）执行
   schedule:
-    - cron: '0 9 * * sun'
+    - cron: '0 16 * * sun'
   # 手动触发条件
   workflow_dispatch:
     description: 手动触发日志清理任务
@@ -18,7 +18,7 @@ jobs:
     - name: 📥 检出仓库
       uses: actions/checkout@v4
       with:
-        fetch-depth: 0  
+        fetch-depth: 0
 
     - name: 🗑️ 清理日志文件
       run: |
@@ -40,4 +40,4 @@ jobs:
           git commit -m "Weekly log cleanup: Empty log.md"
           git push
           echo "🎉 log.md 提交成功，仓库已更新！"
-        fi
+        fi    
