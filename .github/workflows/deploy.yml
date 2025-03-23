@@ -85,26 +85,20 @@ jobs:
     - name: ⏱️ 随机延迟（自动模式或计划模式或手动触发调试模式无自定义延迟）
       if: (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && (github.event.inputs.mode == '自动' || github.event.inputs.debug_schedule != '无') && github.event.inputs.custom_delay == ''))
       run: |
-        BEIJING_TIME=$(date -u -d '+8 hours' +'%Y-%m-%d %H:%M:%S')
-        echo "当前北京时间: $BEIJING_TIME - 开始随机延迟"
         DELAY_MINUTES=$((RANDOM % 21))
         DELAY_SECONDS=$((RANDOM % 60))
         TOTAL_DELAY=$((DELAY_MINUTES * 60 + DELAY_SECONDS))
         echo "⏳ 生成的随机延迟：${DELAY_MINUTES} 分钟 ${DELAY_SECONDS} 秒"
         sleep $TOTAL_DELAY
-        BEIJING_TIME=$(date -u -d '+8 hours' +'%Y-%m-%d %H:%M:%S')
-        echo "当前北京时间: $BEIJING_TIME - 随机延迟结束"
+        echo "✅ 延迟执行完成"
 
     - name: ⏱️ 自定义延迟（手动触发）
       if: github.event_name == 'workflow_dispatch' && github.event.inputs.custom_delay != ''
       run: |
-        BEIJING_TIME=$(date -u -d '+8 hours' +'%Y-%m-%d %H:%M:%S')
-        echo "当前北京时间: $BEIJING_TIME - 开始自定义延迟"
         DELAY=${{ github.event.inputs.custom_delay }}
         echo "⏳ 自定义延迟：${DELAY} 分钟"
         sleep $((DELAY * 60))
-        BEIJING_TIME=$(date -u -d '+8 hours' +'%Y-%m-%d %H:%M:%S')
-        echo "当前北京时间: $BEIJING_TIME - 自定义延迟结束"
+        echo "✅ 延迟执行完成"
 
     - name: 🎲 周随机检查
       id: week_random_check
@@ -124,6 +118,8 @@ jobs:
     - name: 🔢 生成 READ_NUM
       if: steps.week_random_check.outputs.skipped != 'true'
       run: |
+        BEIJING_TIME=$(date -u -d '+8 hours' +'%Y-%m-%d %H:%M:%S')
+        echo "当前北京时间: $BEIJING_TIME - 开始生成 READ_NUM"
         echo "::group::🔢 生成 READ_NUM"
         echo "事件类型: ${{ github.event_name }}"
         echo "输入模式: ${{ github.event.inputs.mode }}"
