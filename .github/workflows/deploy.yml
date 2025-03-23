@@ -244,11 +244,11 @@ jobs:
           # 使用加密的 GitHub Secrets 配置用户信息
           git config --global user.name ${{ secrets.USER_NAME }}
           git config --global user.email ${{ secrets.USER_EMAIL }}
-          
+
           if git diff --quiet log.md; then
             echo "✅ 无变更，跳过提交"
           else
             git add log.md
             git commit -m "Update log.md [skip ci]"
             git push
-          fi    
+          fi
