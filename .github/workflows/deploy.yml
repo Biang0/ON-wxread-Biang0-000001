@@ -1,5 +1,4 @@
-name: Test number
-
+name: Test number  
 on:
   # 定时任务触发条件
   schedule:
@@ -236,7 +235,6 @@ jobs:
         echo "READ_COMPLETE_HEADER: ${{ env.READ_COMPLETE_HEADER }}"
         python main.py || { echo "❌ 主程序执行失败"; exit 1; }
 
-
     - name: 🗑️ 每周日清理日志
       if: github.event.schedule == '0 9 * * sun'
       run: |
@@ -256,3 +254,8 @@ jobs:
             git commit -m "Update log.md [skip ci]"
             git push
           fi
+
+    - name: 显示当前北京时间
+      run: |
+        BEIJING_TIME=$(date -u -d '+8 hours' +'%Y-%m-%d %H:%M:%S')
+        echo "当前北京时间: $BEIJING_TIME"
