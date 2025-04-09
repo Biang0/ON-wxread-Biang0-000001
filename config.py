@@ -28,9 +28,7 @@ curl_str = os.getenv("WXREAD_CURL_BASH", "")
 
 # =================== 书籍映射和随机选择 ===================
 book_mapping = {
-    "66b3227071c0abb966b281b": "罪连环（全集）",
-    "a57325c05c8ed3a57224187": "明朝那些事儿(全集)",
-    "39f329907161e25e39f893e": "明朝那些事儿(增补版)(套装全九册)",
+    "ce032b305a9bc1ce0b0dd2a": "三体",
 }
 b_values = list(book_mapping.keys())
 random_b_value = random.choice(b_values)
@@ -42,11 +40,11 @@ def get_book_info():
 # =================== 请求数据 ===================
 REQUEST_DATA = {
     "appId": "wb182564874663h152492176",
-    "b": random_b_value,
+    "b": "random_b_value",
     "c": "7cb321502467cbbc409e62d",
     "ci": 70,
     "co": 0,
-    "sm": "示例章节",
+    "sm": "[插图]第三部广播纪元7年，程心艾AA说",
     "pr": 74,
     "rt": 30,
     "ts": 1727660516749,
